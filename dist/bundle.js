@@ -5317,7 +5317,7 @@ function startScreen() {
         },
         render: (display) => {
             // Render our prompt to the screen
-            display.drawText(1, 1, "%c{yellow}Javascript Roguelike");
+            display.drawText(1, 1, "%c{yellow}no rl");
             display.drawText(1, 2, "Press [Enter] to start!");
         },
         handleInput: (inputType, inputData, game) => {
