@@ -5281,9 +5281,10 @@ class Entity {
             this.ai.entity = this;
             this.ai.startCountDown(this.maxStamina);
         }
+        else
+            this.sight = 15;
     }
     move(dx, dy, map) {
-        console.log("move: " + this.name);
         let tx = this.x + dx;
         let tx2 = this.x2 + dx;
         let ty = this.y + dy;
@@ -5413,7 +5414,7 @@ exports.Game = Game;
 window.onload = function () {
     let game = new Game();
     // Initialize the game
-    let player = new entity_1.Entity(150, 150, new glyph_1.Glyph('@', 'black', 'deepskyblue'), 'Player', 0, undefined, 5);
+    let player = new entity_1.Entity(200, 150, new glyph_1.Glyph('@', 'black', 'deepskyblue'), 'Player', 0, undefined, 5);
     game._player = player;
     game._entities = [game._player];
     game.init();
@@ -5587,6 +5588,7 @@ const tiles_1 = __webpack_require__(/*! ./tiles */ "./src/tiles.ts");
 const randFromLevel_1 = __webpack_require__(/*! ./helper/randFromLevel */ "./src/helper/randFromLevel.ts");
 const randint_1 = __webpack_require__(/*! ./helper/randint */ "./src/helper/randint.ts");
 const createMonters_1 = __webpack_require__(/*! ./helper/createMonters */ "./src/helper/createMonters.ts");
+const lib_1 = __webpack_require__(/*! ../lib */ "./lib/index.js");
 class Map {
     constructor(width, height) {
         this._width = width;
@@ -5631,8 +5633,6 @@ class Map {
     addEntityToMap() {
         let max_monsters_per_room = randFromLevel_1.from_dungeon_level([[20, 1], [3, 4], [5, 6]], this.dungeon_level);
         let max_items_per_room = randFromLevel_1.from_dungeon_level([[1, 1], [2, 4]], this.dungeon_level);
-        console.log(max_items_per_room);
-        console.log(max_monsters_per_room);
         let number_of_monsters = 20; //randint(0, max_monsters_per_room)
         let number_of_items = randint_1.randint(0, max_items_per_room);
         let monster_chances = {
@@ -5656,7 +5656,6 @@ class Map {
             let x = randint_1.randint(0, this._width - 1);
             let y = randint_1.randint(0, this._height - 1);
             let emptyspace = true;
-            console.log('index: ' + index);
             for (let index = 0; index < this._entities.length; index++) {
                 if (this._entities[index].x == x && this._entities[index].y == y) {
                     console.log('what');
@@ -5665,13 +5664,57 @@ class Map {
             }
             if (emptyspace == true) {
                 let monster_choice = randFromLevel_1.random_choice_from_dict(monster_chances);
-                console.log(monster_choice);
                 let q = createMonters_1.CreateMonster(monster_choice, x, y);
                 q._map = this;
                 this._entities.push(q);
             }
         }
         return null;
+    }
+    lightPasses(x, y) {
+        console.log(this._tiles[x][y]);
+        return this._tiles[x][y]._blocksLight;
+    }
+    setupFov(topleftX, topleftY) {
+        let fov = new lib_1.FOV.PreciseShadowcasting((x, y) => {
+            // x = x <= 0 ? this._entities[0].sight+1 : x >= this._width ? this._width-this._entities[0].sight-1 : x;
+            // y = y <= 0 ? this._entities[0].sight+1 : y >= this._height ? this._height-this._entities[0].sight-1 : y;
+            if (x >= this._width)
+                x = this._width - 1;
+            if (x <= 0)
+                x = 0;
+            if (y >= this._height)
+                y = this._height - 1;
+            if (y <= 0)
+                x = 0;
+            if (this._tiles[x] == undefined)
+                console.log('x: ' + x + ' y: ' + y);
+            return !this._tiles[x][y]._blocksLight;
+        });
+        fov.compute(this._entities[0].x, this._entities[0].y, this._entities[0].sight, (x, y, r, visibility) => {
+            let dx = Math.pow(this._entities[0].x - x, 2);
+            let dy = Math.pow(this._entities[0].y - y, 2);
+            let dist = Math.sqrt(dx + dy);
+            if (x < 0 || x >= this._width || y < 0 || y >= this._height) {
+                return;
+            }
+            let fogRGB = lib_1.Color.fromString(this._tiles[x][y].baseTile.foreground);
+            if (dist <= this._entities[0].sight - 2) {
+                if (dist <= this._entities[0].sight / 2)
+                    this._tiles[x][y].visited = true;
+                let perc = 1 - ((dist) / this._entities[0].sight) + 0.2;
+                this._tiles[x][y].tile.foreground = lib_1.Color.toRGB([Math.floor(fogRGB[0] * perc), Math.floor(fogRGB[1] * perc), Math.floor(fogRGB[2] * perc)]);
+            }
+            else {
+                this._tiles[x][y].tile.foreground = lib_1.Color.toRGB([Math.floor(fogRGB[0] * 0.2), Math.floor(fogRGB[1] * 0.2), Math.floor(fogRGB[2] * 0.2)]);
+            }
+            //console.log('draw at: ' + x + ', ' + y);
+            this._display.draw(x - topleftX, y - topleftY, this._tiles[x][y].tile.char, this._tiles[x][y].tile.foreground, 'black');
+        });
+        //this._fov.push(new FOV.DiscreteShadowcasting(this.lightPasses(x,y)) ) 
+    }
+    getFov() {
+        return this._fov;
     }
 }
 exports.Map = Map;
@@ -5694,6 +5737,9 @@ const constants_1 = __webpack_require__(/*! ../lib/constants */ "./lib/constants
 const Color = __webpack_require__(/*! ../lib/color */ "./lib/color.js");
 const tiles_1 = __webpack_require__(/*! ./tiles */ "./src/tiles.ts");
 const maps = __webpack_require__(/*! ../lib/map */ "./lib/map/index.js");
+const glyph_1 = __webpack_require__(/*! ./glyph */ "./src/glyph.ts");
+const entity_1 = __webpack_require__(/*! ./entity */ "./src/entity.ts");
+const fungi_1 = __webpack_require__(/*! ./content/monsters/fungi */ "./src/content/monsters/fungi.ts");
 function startScreen() {
     //Game.Screen.startScreen = {
     return {
@@ -5725,7 +5771,7 @@ function playScreen() {
             let mapWidth = 300;
             let mapHeight = 300;
             game._map = new map_1.Map(mapWidth, mapHeight);
-            let emptyTile = new tiles_1.Tile('Empty', ' ', 'black', 'white', true, false);
+            let emptyTile = new tiles_1.Tile('Empty', ' ', 'black', 'white', true, false, false);
             console.log("Entered play screen.");
             for (let x = 0; x < mapWidth; x++) {
                 // Create the nested array for the y values
@@ -5745,25 +5791,25 @@ function playScreen() {
             // Smoothen it one last time and then update our map
             generator.create((x, y, v) => {
                 if (v === 1) {
-                    game._map._tiles[x][y] = new tiles_1.Tile('Floor', ' ', 'black', 'white', true, false); //floor
+                    game._map._tiles[x][y] = new tiles_1.Tile('Floor', '.', Color.toRGB([0, 0, 0]), Color.toRGB([84, 54, 11]), true, false); //floor
                 }
                 else {
-                    game._map._tiles[x][y] = new tiles_1.Tile('Wall', '#', 'black', 'goldenrod', false, true);
+                    game._map._tiles[x][y] = new tiles_1.Tile('Wall', '#', 'black', 'goldenrod', false, true, true);
                 }
             });
+            // Sync map and game variables
+            game._map._entities = [];
+            game._map._entities.push(game._player); //player always [0]
+            let ai_component = new fungi_1.Fungi();
+            let monster = new entity_1.Entity(201, 151, new glyph_1.Glyph('f', 'black', 'green'), 'fungi', 1, true, 5, 99, undefined, ai_component);
+            game._map._entities.push(monster);
             game._player._map = game._map;
+            game._map._display = game._display;
             game.timer = true;
             game.startCountDown();
-            game._map._entities.push(game._player);
             game._map.addEntityToMap();
             console.log(game._map._entities);
-            // let fungai = new Fungi(20);
-            // let fung = new Entity(140, 140, new Glyph('f', 'black', 'green'), 'fungi', 0, true, 2, 2, undefined, fungai);
-            // fung._map = game._map;
-            // game._entities.push(fung);
             game._entities = game._map._entities;
-            console.log(game._map._entities);
-            console.log(game._entities);
         },
         exit: () => {
             console.log("Exited play screen.");
@@ -5783,14 +5829,24 @@ function playScreen() {
             for (let x = topLeftX; x < topLeftX + screenWidth; x++) {
                 for (let y = topLeftY; y < topLeftY + screenHeight; y++) {
                     // Fetch the glyph for the tile and render it to the screen
-                    let glyph = game._map.getTile(x, y).tile;
-                    display.draw(x - topLeftX, y - topLeftY, glyph.char, glyph.foreground, glyph.background);
+                    let cell = game._map.getTile(x, y);
+                    cell.visited ?
+                        display.draw(x - topLeftX, y - topLeftY, cell.visitedTile.char, cell.visitedTile.foreground, cell.visitedTile.background) :
+                        display.draw(x - topLeftX, y - topLeftY, ' ', Color.toRGB([0, 0, 0]), Color.toRGB([0, 0, 0]));
                 }
             }
-            let szet = game._entities.length;
+            game._map.setupFov(topLeftX, topLeftY);
             for (let i = 0; i < game._entities.length; i++) {
                 //console.log(game._entities[i]);
-                display.draw(game._entities[i].x - topLeftX, game._entities[i].y - topLeftY, game._entities[i].glyph.char, game._entities[i].glyph.foreground, game._entities[i].glyph.background);
+                let cell = game._map.getTile(game._entities[0].x, game._entities[0].y);
+                if (cell.tile != cell.visitedTile && cell.visited == true) {
+                    let dx = Math.pow(game._entities[0].x - game._entities[i].x, 2);
+                    let dy = Math.pow(game._entities[0].y - game._entities[i].y, 2);
+                    let dist = Math.sqrt(dx + dy);
+                    if (dist == 0 || dist <= game._entities[0].sight) {
+                        display.draw(game._entities[i].x - topLeftX, game._entities[i].y - topLeftY, game._entities[i].glyph.char, game._entities[i].glyph.foreground, game._entities[i].glyph.background);
+                    }
+                }
             }
         },
         handleInput: (inputType, inputData, game) => {
@@ -5884,14 +5940,22 @@ exports.loseScreen = loseScreen;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 const glyph_1 = __webpack_require__(/*! ./glyph */ "./src/glyph.ts");
+const lib_1 = __webpack_require__(/*! ../lib */ "./lib/index.js");
 class Tile {
-    constructor(name, char = ' ', background = 'black', foreground = 'white', walkable = false, diggable = false) {
+    constructor(name, char = ' ', background = [0, 0, 0], foreground = [255, 255, 255], walkable = false, diggable = false, blockslight = false) {
+        this.visited = false;
         this._isWalkable = false;
         this._isDiggable = false;
+        this._blocksLight = false;
         this.name = name;
         this._isDiggable = diggable;
         this._isWalkable = walkable;
+        this._blocksLight = blockslight;
         this.tile = new glyph_1.Glyph(char, background, foreground);
+        this.baseTile = new glyph_1.Glyph(char, background, foreground);
+        this.visitedTile = new glyph_1.Glyph(char, background, foreground);
+        let fogRGB = lib_1.Color.fromString(this.tile.foreground);
+        this.visitedTile.foreground = lib_1.Color.toRGB([Math.floor(fogRGB[0] * 0.2), Math.floor(fogRGB[1] * 0.2), Math.floor(fogRGB[2] * 0.2)]);
     }
 }
 exports.Tile = Tile;
