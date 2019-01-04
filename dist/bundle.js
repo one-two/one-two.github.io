@@ -5374,7 +5374,8 @@ class Entity {
             }
             else {
                 if (this.fighter != undefined && this.glyph.char == '@') {
-                    this._map.messageLog.addMessage("this is an attack");
+                    this._map.messageLog.addMessage("you kicked a %c{green}" + targets[0].name + "%c{}!");
+                    this.fighter.hp -= 1;
                 }
                 else {
                     let player = undefined;
@@ -6042,6 +6043,7 @@ function playScreen() {
                         break;
                     case constants_1.KEYS.VK_SPACE:
                         game.switchScreen(game.Screen.playScreen);
+                        game.messageLog.messages = [];
                         break;
                     case constants_1.KEYS.VK_LEFT:
                         game._entities[0].move(-1, 0, game._map);
