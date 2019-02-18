@@ -5924,7 +5924,7 @@ class Entity {
     equip(item) {
         console.log(item);
         let equip = {
-            message: this.owner.name + " empunhou uma %c{0}" + item.name.toString() + "%c{1} !",
+            message: this.name + " empunhou uma %c{0}" + item.name.toString() + "%c{1} !",
             type: 'pickup',
             color1: item.glyph.foreground,
             color2: [255, 255, 255]
@@ -6833,7 +6833,6 @@ function playScreen() {
                             game._entities[0].equip(gnd[0]);
                         }
                         else {
-                            console.log(game._entities[0]);
                         }
                         break;
                     case constants_1.KEYS.VK_ESCAPE:
