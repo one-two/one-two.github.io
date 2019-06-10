@@ -5217,16 +5217,21 @@ process.umask = function() { return 0; };
 Object.defineProperty(exports, "__esModule", { value: true });
 const deathFunction_1 = __webpack_require__(/*! ../helper/deathFunction */ "./src/helper/deathFunction.ts");
 class DamageBlock {
-    constructor(multi) {
+    constructor(multi, timeout = 6) {
         this.expire = false;
         this.multiplier = multi;
+        this.timeout = timeout;
     }
     startCountDown() {
-        var counter = 6;
+        var counter = this.timeout;
         var interval = setInterval(() => {
             counter--;
             if (counter == 2) {
-                this.owner.glyph.foreground = [216, 112, 147];
+                let newColor = this.owner.glyph.foreground.map(element => {
+                    element = element * 4.3 > 250 ? 250 : element * 4.3;
+                    return element;
+                });
+                this.owner.glyph.foreground = [250, newColor[1], newColor[2]]; //[216, 112, 147] //
             }
             if (counter == 0) {
                 clearInterval(interval);
@@ -5287,6 +5292,10 @@ class Fighter {
         this.base_power = atk;
         this.xp = xp;
         this.status = 'normal';
+        this.current_exp = 0;
+        this.nextRank = 10;
+        this.unspentPoints = 0;
+        this.rank = 1;
     }
     power() {
         let bonus = 0;
@@ -5328,6 +5337,7 @@ class Fighter {
             };
             this.owner._map.messageLog.addMessage(msg); //"%c{"+ this.owner.glyph.foreground +"}" + this.owner.name + "%c{} morreu")
             deathFunction_1.deathFunction(this.owner);
+            return true;
         }
     }
     heal(amount) {
@@ -5349,8 +5359,10 @@ class Fighter {
             // results.append({'message': Message('{0} ataca {1} e mandou {2} de dano.'.format(
             //     this.owner.name.capitalize(), target.name, str(round(damage))), libtcod.white)})
             // results.extend(target.fighter.take_damage(damage))
-            target.fighter.takeDamage(damage);
-            result.message = this.owner.name + " bateu em um %c{0}" + target.name + "%c{1} com " + damage + " de dano! (" + target.fighter.hp + ")";
+            let death = target.fighter.takeDamage(damage);
+            if (death)
+                this.getExp(target.fighter.xp);
+            result.message = this.owner.name + " bateu em um %c{0}" + target.name + "%c{1} com " + damage + " de dano! (" + target.fighter.hp.toFixed(2) + ")";
         }
         else {
             result.message = this.owner.name + " bateu em um %c{0}" + target.name + "%c{1} mas não causou dano!";
@@ -5370,13 +5382,24 @@ class Fighter {
             // results.append({'message': Message('{0} ataca {1} e mandou {2} de dano.'.format(
             //     this.owner.name.capitalize(), target.name, str(round(damage))), libtcod.white)})
             // results.extend(target.fighter.take_damage(damage))
-            target.fighter.takeDamage(damage);
-            result.message = this.owner.name + " usou uma " + dmgBlock.name + " em um %c{0}" + target.name + "%c{1} com " + damage + " de dano! (" + target.fighter.hp + ")";
+            let death = target.fighter.takeDamage(damage);
+            if (death)
+                this.getExp(target.fighter.xp);
+            result.message = this.owner.name + " usou uma " + dmgBlock.name + " em um %c{0}" + target.name + "%c{1} com " + damage + " de dano! (" + target.fighter.hp.toFixed(2) + ")";
         }
         else {
             result.message = this.owner.name + " bateu em um %c{0}" + target.name + "%c{1} mas não causou dano!";
         }
         return result;
+    }
+    getExp(amount) {
+        this.current_exp += amount;
+        while (this.current_exp >= this.nextRank) {
+            this.rank += 1;
+            this.nextRank += (this.nextRank + 10);
+            this.unspentPoints += 1;
+            console.log("rank up!");
+        }
     }
 }
 exports.Fighter = Fighter;
@@ -5395,55 +5418,158 @@ exports.Fighter = Fighter;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 const createDamageBlock_1 = __webpack_require__(/*! ../helper/createDamageBlock */ "./src/helper/createDamageBlock.ts");
-function poison_cloud(owner, target, multi) {
+function poison_cloud(owner, target, damageMultiplier) {
     let nameAtk = 'nuvem de esporos';
-    createDamageBlock_1.createDamageBlock(owner, target.x, target.y, nameAtk, multi);
-    createDamageBlock_1.createDamageBlock(owner, target.x + 1, target.y, nameAtk, multi);
-    createDamageBlock_1.createDamageBlock(owner, target.x - 1, target.y, nameAtk, multi);
-    createDamageBlock_1.createDamageBlock(owner, target.x, target.y + 1, nameAtk, multi);
-    createDamageBlock_1.createDamageBlock(owner, target.x, target.y - 1, nameAtk, multi);
+    createDamageBlock_1.createDamageBlock(owner, target.x, target.y, nameAtk, damageMultiplier, "ꙮ");
+    createDamageBlock_1.createDamageBlock(owner, target.x + 1, target.y, nameAtk, damageMultiplier, "ꙮ");
+    createDamageBlock_1.createDamageBlock(owner, target.x - 1, target.y, nameAtk, damageMultiplier, "ꙮ");
+    createDamageBlock_1.createDamageBlock(owner, target.x, target.y + 1, nameAtk, damageMultiplier, "ꙮ");
+    createDamageBlock_1.createDamageBlock(owner, target.x, target.y - 1, nameAtk, damageMultiplier, "ꙮ");
 }
 exports.poison_cloud = poison_cloud;
-function poison_shield(owner, target, multi) {
+function poison_shield(owner, target, damageMultiplier) {
     let nameAtk = 'escudo de esporos';
-    createDamageBlock_1.createDamageBlock(owner, owner.x + 1, owner.y - 1, nameAtk, multi);
-    createDamageBlock_1.createDamageBlock(owner, owner.x + 1, owner.y, nameAtk, multi);
-    createDamageBlock_1.createDamageBlock(owner, owner.x + 1, owner.y + 1, nameAtk, multi);
-    createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 1, nameAtk, multi);
-    createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 1, nameAtk, multi);
-    createDamageBlock_1.createDamageBlock(owner, owner.x - 1, owner.y - 1, nameAtk, multi);
-    createDamageBlock_1.createDamageBlock(owner, owner.x - 1, owner.y, nameAtk, multi);
-    createDamageBlock_1.createDamageBlock(owner, owner.x - 1, owner.y + 1, nameAtk, multi);
+    createDamageBlock_1.createDamageBlock(owner, owner.x + 1, owner.y - 1, nameAtk, damageMultiplier);
+    createDamageBlock_1.createDamageBlock(owner, owner.x + 1, owner.y, nameAtk, damageMultiplier);
+    createDamageBlock_1.createDamageBlock(owner, owner.x + 1, owner.y + 1, nameAtk, damageMultiplier);
+    createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 1, nameAtk, damageMultiplier);
+    createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 1, nameAtk, damageMultiplier);
+    createDamageBlock_1.createDamageBlock(owner, owner.x - 1, owner.y - 1, nameAtk, damageMultiplier);
+    createDamageBlock_1.createDamageBlock(owner, owner.x - 1, owner.y, nameAtk, damageMultiplier);
+    createDamageBlock_1.createDamageBlock(owner, owner.x - 1, owner.y + 1, nameAtk, damageMultiplier);
 }
 exports.poison_shield = poison_shield;
-function punch(owner, target, multi) {
+function punch(owner, target, damageMultiplier) {
     let nameAtk = 'socao';
     if (owner.face == 'n') {
-        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 1, nameAtk, multi);
-        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 2, nameAtk, multi);
-        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 3, nameAtk, multi);
-        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 4, nameAtk, multi);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 1, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 2, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 3, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 4, nameAtk, damageMultiplier);
     }
     if (owner.face == 's') {
-        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 1, nameAtk, multi);
-        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 2, nameAtk, multi);
-        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 3, nameAtk, multi);
-        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 4, nameAtk, multi);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 1, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 2, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 3, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 4, nameAtk, damageMultiplier);
     }
     if (owner.face == 'w') {
-        createDamageBlock_1.createDamageBlock(owner, owner.x - 1, owner.y, nameAtk, multi);
-        createDamageBlock_1.createDamageBlock(owner, owner.x - 2, owner.y, nameAtk, multi);
-        createDamageBlock_1.createDamageBlock(owner, owner.x - 3, owner.y, nameAtk, multi);
-        createDamageBlock_1.createDamageBlock(owner, owner.x - 4, owner.y, nameAtk, multi);
+        createDamageBlock_1.createDamageBlock(owner, owner.x - 1, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x - 2, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x - 3, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x - 4, owner.y, nameAtk, damageMultiplier);
     }
     if (owner.face == 'e') {
-        createDamageBlock_1.createDamageBlock(owner, owner.x + 1, owner.y, nameAtk, multi);
-        createDamageBlock_1.createDamageBlock(owner, owner.x + 2, owner.y, nameAtk, multi);
-        createDamageBlock_1.createDamageBlock(owner, owner.x + 3, owner.y, nameAtk, multi);
-        createDamageBlock_1.createDamageBlock(owner, owner.x + 4, owner.y, nameAtk, multi);
+        createDamageBlock_1.createDamageBlock(owner, owner.x + 1, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x + 2, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x + 3, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x + 4, owner.y, nameAtk, damageMultiplier);
     }
 }
 exports.punch = punch;
+function smash(owner, target, damageMultiplier) {
+    let nameAtk = 'socao';
+    if (owner.face == 'n') {
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 1, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 2, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 3, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 4, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x - 1, owner.y - 4, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x + 1, owner.y - 4, nameAtk, damageMultiplier);
+    }
+    if (owner.face == 's') {
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 1, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 2, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 3, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 4, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x - 1, owner.y + 4, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x + 1, owner.y + 4, nameAtk, damageMultiplier);
+    }
+    if (owner.face == 'w') {
+        createDamageBlock_1.createDamageBlock(owner, owner.x - 1, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x - 2, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x - 3, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x - 4, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x - 4, owner.y + 1, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x - 4, owner.y - 1, nameAtk, damageMultiplier);
+    }
+    if (owner.face == 'e') {
+        createDamageBlock_1.createDamageBlock(owner, owner.x + 1, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x + 2, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x + 3, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x + 4, owner.y, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x + 4, owner.y + 1, nameAtk, damageMultiplier);
+        createDamageBlock_1.createDamageBlock(owner, owner.x + 4, owner.y - 1, nameAtk, damageMultiplier);
+    }
+}
+exports.smash = smash;
+function windBlow(owner, target, damageMultiplier) {
+    let nameAtk = 'nuvem de esporos';
+    createDamageBlock_1.createDamageBlock(owner, target.x, target.y, nameAtk, damageMultiplier, "ꙮ");
+    createDamageBlock_1.createDamageBlock(owner, target.x + 1, target.y + 1, nameAtk, damageMultiplier, "ꙮ");
+    createDamageBlock_1.createDamageBlock(owner, target.x - 1, target.y - 1, nameAtk, damageMultiplier, "ꙮ");
+    createDamageBlock_1.createDamageBlock(owner, target.x - 1, target.y + 1, nameAtk, damageMultiplier, "ꙮ");
+    createDamageBlock_1.createDamageBlock(owner, target.x + 1, target.y - 1, nameAtk, damageMultiplier, "ꙮ");
+}
+exports.windBlow = windBlow;
+function snipe(owner, target, damageMultiplier) {
+    let nameAtk = 'tiro';
+    let dx = target.x - owner.x;
+    let dy = target.y - owner.y;
+    if (Math.abs(dx) < Math.abs(dy)) {
+        if (dy > 0) {
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 2, nameAtk, damageMultiplier, "↓", 6);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 3, nameAtk, damageMultiplier, "↓", 7);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 4, nameAtk, damageMultiplier, "↓", 8);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 5, nameAtk, damageMultiplier, "↓", 9);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 6, nameAtk, damageMultiplier, "↓", 10);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 7, nameAtk, damageMultiplier, "↓", 11);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 8, nameAtk, damageMultiplier, "↓", 12);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 9, nameAtk, damageMultiplier, "↓", 13);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 10, nameAtk, damageMultiplier, "↓", 14);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y + 11, nameAtk, damageMultiplier, "↓", 15);
+        }
+        else {
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 2, nameAtk, damageMultiplier, "↑", 6);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 3, nameAtk, damageMultiplier, "↑", 7);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 4, nameAtk, damageMultiplier, "↑", 8);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 5, nameAtk, damageMultiplier, "↑", 9);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 6, nameAtk, damageMultiplier, "↑", 10);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 7, nameAtk, damageMultiplier, "↑", 11);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 8, nameAtk, damageMultiplier, "↑", 12);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 9, nameAtk, damageMultiplier, "↑", 13);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 10, nameAtk, damageMultiplier, "↑", 14);
+            createDamageBlock_1.createDamageBlock(owner, owner.x, owner.y - 11, nameAtk, damageMultiplier, "↑", 15);
+        }
+    }
+    if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 0) {
+            createDamageBlock_1.createDamageBlock(owner, owner.x + 2, owner.y, nameAtk, damageMultiplier, "→", 6);
+            createDamageBlock_1.createDamageBlock(owner, owner.x + 3, owner.y, nameAtk, damageMultiplier, "→", 7);
+            createDamageBlock_1.createDamageBlock(owner, owner.x + 4, owner.y, nameAtk, damageMultiplier, "→", 8);
+            createDamageBlock_1.createDamageBlock(owner, owner.x + 5, owner.y, nameAtk, damageMultiplier, "→", 9);
+            createDamageBlock_1.createDamageBlock(owner, owner.x + 6, owner.y, nameAtk, damageMultiplier, "→", 10);
+            createDamageBlock_1.createDamageBlock(owner, owner.x + 7, owner.y, nameAtk, damageMultiplier, "→", 11);
+            createDamageBlock_1.createDamageBlock(owner, owner.x + 8, owner.y, nameAtk, damageMultiplier, "→", 12);
+            createDamageBlock_1.createDamageBlock(owner, owner.x + 9, owner.y, nameAtk, damageMultiplier, "→", 13);
+            createDamageBlock_1.createDamageBlock(owner, owner.x + 10, owner.y, nameAtk, damageMultiplier, "→", 14);
+            createDamageBlock_1.createDamageBlock(owner, owner.x + 11, owner.y, nameAtk, damageMultiplier, "→", 15);
+        }
+        else {
+            createDamageBlock_1.createDamageBlock(owner, owner.x - 2, owner.y, nameAtk, damageMultiplier, "←", 6);
+            createDamageBlock_1.createDamageBlock(owner, owner.x - 3, owner.y, nameAtk, damageMultiplier, "←", 7);
+            createDamageBlock_1.createDamageBlock(owner, owner.x - 4, owner.y, nameAtk, damageMultiplier, "←", 8);
+            createDamageBlock_1.createDamageBlock(owner, owner.x - 5, owner.y, nameAtk, damageMultiplier, "←", 9);
+            createDamageBlock_1.createDamageBlock(owner, owner.x - 6, owner.y, nameAtk, damageMultiplier, "←", 10);
+            createDamageBlock_1.createDamageBlock(owner, owner.x - 7, owner.y, nameAtk, damageMultiplier, "←", 11);
+            createDamageBlock_1.createDamageBlock(owner, owner.x - 8, owner.y, nameAtk, damageMultiplier, "←", 12);
+            createDamageBlock_1.createDamageBlock(owner, owner.x - 9, owner.y, nameAtk, damageMultiplier, "←", 13);
+            createDamageBlock_1.createDamageBlock(owner, owner.x - 10, owner.y, nameAtk, damageMultiplier, "←", 14);
+            createDamageBlock_1.createDamageBlock(owner, owner.x - 11, owner.y, nameAtk, damageMultiplier, "←", 15);
+        }
+    }
+}
+exports.snipe = snipe;
 
 
 /***/ }),
@@ -5468,7 +5594,7 @@ class Knife extends equipment_1.Equipment {
         this.skill_bonus = 1.5;
         this.defense_bonus = 0;
         this.hp_bonus = 0;
-        this.name = 'faca';
+        this.name = 'knife';
         this.cooldown = 10;
         this.startCountDown();
     }
@@ -5525,7 +5651,7 @@ class Sword extends equipment_1.Equipment {
         this.skill_bonus = 1.7;
         this.defense_bonus = 0;
         this.hp_bonus = 0;
-        this.name = 'espada';
+        this.name = 'sword';
         this.cooldown = 10;
         this.startCountDown();
     }
@@ -5628,7 +5754,7 @@ class Fungi {
         let dist = Math.sqrt(Math.pow((player.x - this.owner.x), 2) + Math.pow((player.y - this.owner.y), 2));
         if (dist < this.owner.sight * 1.4) {
             if (this.skills[0].cooldown == this.skills[0].maxCooldown) {
-                skilllist_1.poison_cloud(this.owner, player, 0.5);
+                skilllist_1.poison_cloud(this.owner, player, this.skill_bonus * 0.5);
                 this.skills[0].cooldown = 0;
             }
             //this.owner.hunt(player);
@@ -5712,6 +5838,93 @@ exports.Orc = Orc;
 
 /***/ }),
 
+/***/ "./src/content/monsters/ranger.ts":
+/*!****************************************!*\
+  !*** ./src/content/monsters/ranger.ts ***!
+  \****************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const deathFunction_1 = __webpack_require__(/*! ../../helper/deathFunction */ "./src/helper/deathFunction.ts");
+const skilllist_1 = __webpack_require__(/*! ../../components/skilllist */ "./src/components/skilllist.ts");
+class Ranger {
+    constructor() {
+        this.skill_bonus = 1.5;
+        this.skills = [{
+                name: 'snipe',
+                cooldown: 24,
+                maxCooldown: 24
+            }];
+    }
+    startCountDown(seconds) {
+        var counter = seconds;
+        var interval = setInterval(() => {
+            counter--;
+            this.skills.forEach(element => {
+                if (element.cooldown < element.maxCooldown)
+                    element.cooldown++;
+            });
+            if (counter < 0) {
+                // code here will run when the counter reaches zero.
+                if (this.owner.fighter.hp == 0) {
+                    clearInterval(interval);
+                    deathFunction_1.deathFunction(this.owner);
+                }
+                else {
+                    counter = this.owner.maxStamina;
+                    this.act();
+                }
+            }
+        }, 100);
+    }
+    act() {
+        let player = this.owner._map.getPlayer();
+        if (player == undefined)
+            return;
+        let dist = Math.sqrt(Math.pow((player.x - this.owner.x), 2) + Math.pow((player.y - this.owner.y), 2));
+        if (dist < this.owner.sight * 1.5 && dist > 9) {
+            this.owner.hunt(player);
+            if (dist <= 9 && (this.owner.x == player.x || this.owner.y == player.y)) {
+                skilllist_1.snipe(this.owner, player, 1.2);
+            }
+        }
+        else if (dist < 12) {
+            let dx = player.x - this.owner.x;
+            let dy = player.y - this.owner.y;
+            if (Math.abs(dx) > Math.abs(dy)) {
+                if (dy > 0) {
+                    this.owner.move(0, 1, this.owner._map);
+                }
+                else {
+                    this.owner.move(0, -1, this.owner._map);
+                }
+            }
+            else {
+                if (dx > 0) {
+                    this.owner.move(1, 0, this.owner._map);
+                }
+                else {
+                    this.owner.move(-1, 0, this.owner._map);
+                }
+            }
+            if (dist < 5) {
+                this.owner.kite(player);
+            }
+            skilllist_1.snipe(this.owner, player, 1.2);
+        }
+        else {
+            this.owner.wander();
+        }
+    }
+}
+exports.Ranger = Ranger;
+
+
+/***/ }),
+
 /***/ "./src/content/monsters/troll.ts":
 /*!***************************************!*\
   !*** ./src/content/monsters/troll.ts ***!
@@ -5728,7 +5941,7 @@ class Troll {
     constructor() {
         this.skill_bonus = 1.5;
         this.skills = [{
-                name: 'punch',
+                name: 'smash',
                 cooldown: 12,
                 maxCooldown: 12
             }];
@@ -5762,7 +5975,7 @@ class Troll {
         if (dist < this.owner.sight) {
             this.owner.hunt(player);
             if (dist <= 5 && (this.owner.x == player.x || this.owner.y == player.y)) {
-                skilllist_1.punch(this.owner, player, 1.2);
+                skilllist_1.smash(this.owner, player, this.skill_bonus);
             }
         }
         else {
@@ -5771,6 +5984,72 @@ class Troll {
     }
 }
 exports.Troll = Troll;
+
+
+/***/ }),
+
+/***/ "./src/content/monsters/wyvern.ts":
+/*!****************************************!*\
+  !*** ./src/content/monsters/wyvern.ts ***!
+  \****************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const deathFunction_1 = __webpack_require__(/*! ../../helper/deathFunction */ "./src/helper/deathFunction.ts");
+const skilllist_1 = __webpack_require__(/*! ../../components/skilllist */ "./src/components/skilllist.ts");
+class Wyvern {
+    constructor() {
+        this.skill_bonus = 1.5;
+        this.skills = [{
+                name: 'windBlow',
+                cooldown: 8,
+                maxCooldown: 8
+            }];
+    }
+    startCountDown(seconds) {
+        var counter = seconds;
+        var interval = setInterval(() => {
+            counter--;
+            this.skills.forEach(element => {
+                if (element.cooldown < element.maxCooldown)
+                    element.cooldown++;
+            });
+            if (counter < 0) {
+                // code here will run when the counter reaches zero.
+                if (this.owner.fighter.hp == 0) {
+                    clearInterval(interval);
+                    deathFunction_1.deathFunction(this.owner);
+                }
+                else {
+                    counter = this.owner.maxStamina;
+                    this.act();
+                }
+            }
+        }, 100);
+    }
+    act() {
+        let player = this.owner._map.getPlayer();
+        if (player == undefined)
+            return;
+        let dist = Math.sqrt(Math.pow((player.x - this.owner.x), 2) + Math.pow((player.y - this.owner.y), 2));
+        if (dist < this.owner.sight) {
+            this.owner.hunt(player);
+            if (dist <= this.owner.sight) {
+                if (this.skills[0].cooldown == this.skills[0].maxCooldown) {
+                    skilllist_1.windBlow(this.owner, player, this.skill_bonus);
+                    this.skills[0].cooldown = 0;
+                }
+            }
+        }
+        else {
+            this.owner.wander();
+        }
+    }
+}
+exports.Wyvern = Wyvern;
 
 
 /***/ }),
@@ -5788,6 +6067,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const lib_1 = __webpack_require__(/*! ../lib */ "./lib/index.js");
 const randint_1 = __webpack_require__(/*! ./helper/randint */ "./src/helper/randint.ts");
 const deathFunction_1 = __webpack_require__(/*! ./helper/deathFunction */ "./src/helper/deathFunction.ts");
+const createItens_1 = __webpack_require__(/*! ./helper/createItens */ "./src/helper/createItens.ts");
 class Entity {
     constructor(x, y, glyph, name, size = 0, blocks = false, maxStamina = 0, render_order = 99, fighter = undefined, ai = undefined, player = false, item = undefined, inventory = undefined, damage = undefined, stairs = undefined, level = undefined, equipment = undefined, equippable = undefined, _map = undefined, _entities = undefined) {
         this.x = x;
@@ -5819,7 +6099,7 @@ class Entity {
             this.sight = 10;
         }
         else
-            this.sight = 12;
+            this.sight = 12; //12
         if (this.fighter != undefined) {
             this.fighter.owner = this;
         }
@@ -5922,24 +6202,37 @@ class Entity {
         }, 100);
     }
     equip(item) {
-        console.log(item);
-        let equip = {
-            message: this.name + " empunhou uma %c{0}" + item.name.toString() + "%c{1} !",
-            type: 'pickup',
-            color1: item.glyph.foreground,
-            color2: [255, 255, 255]
-        };
-        this._map.messageLog.addMessage(equip);
+        console.log('item: ');
+        console.log(item); //item do chao
+        console.log("this:");
+        console.log(this); //player
         if (this.equipment == undefined) {
             this.equipment = item.item;
             this.equipment.owner = this;
             item.item.expire = true;
+            let equip = {
+                message: this.name + " empunhou uma %c{0}" + item.name.toString() + "%c{1} !",
+                type: 'pickup',
+                color1: item.glyph.foreground,
+                color2: [255, 255, 255]
+            };
+            this._map.messageLog.addMessage(equip);
         }
         else {
             // colocar na backpack
+            let drop = createItens_1.CreateDropItem(this.equipment, this.x, this.y);
+            let droppedItem = new Entity(this.x, this.y, drop.glyph, drop.name, 1, false, 5, 2, undefined, undefined, false, drop.item);
+            this._map._entities.push(droppedItem);
             this.equipment = item.item;
             this.equipment.owner = this;
             item.item.expire = true;
+            let equip = {
+                message: this.name + " trocou uma %c{0}" + drop.name.toString() + "%c{1} por uma %c{0}" + this.equipment.name.toString() + " %c{1}!",
+                type: 'pickup',
+                color1: item.glyph.foreground,
+                color2: [255, 255, 255]
+            };
+            this._map.messageLog.addMessage(equip);
         }
     }
     attack(targets) {
@@ -6004,6 +6297,31 @@ class Entity {
         }
         this.move(dx, dy, this._map);
     }
+    kite(target) {
+        let source = this;
+        let targetx = this.x - (target.x - this.x);
+        let targety = this.y - (target.y - this.y);
+        var path = new lib_1.Path.AStar(targetx, targety, function (x, y) {
+            // If an entity is present at the tile, can't move there.
+            let entity = source._map.getEntitiesAt(this.x1, this.x2, this.y1, this.y2);
+            if (entity.length > 0) {
+                return false;
+            }
+            return source._map.getTile(x, y)._isWalkable;
+        }, { topology: 8 });
+        var count = 0;
+        path.compute(source.x, source.y, function (x, y) {
+            if (count == 1) {
+                let dx = (x - source.x);
+                let dy = (y - source.y);
+                source.move(dx, dy, source._map);
+            }
+            if (count > 1) {
+                return;
+            }
+            count++;
+        });
+    }
     // startCountDown(seconds: number){
     //     var counter = seconds;
     //     var interval = setInterval(() => {
@@ -6045,16 +6363,19 @@ const logo_1 = __webpack_require__(/*! ../logo/logo */ "./logo/logo.ts");
 class Game {
     constructor() {
         this._messageBoxSize = 10;
-        this._screenWidth = 90;
-        this._screenHeight = 30;
+        this._screenWidth = 74;
+        this._screenHeight = 40;
         this._entities = [];
         this.timer = true;
+        this.level = 1;
+        this.blinkLevel = 0;
         this._centerX = 0;
         this._centerY = 0;
         this._display = null;
         this._currentScreen = null;
         this.Screen = {
             startScreen: screens_1.startScreen(),
+            debugScreen: screens_1.debugScreen(),
             playScreen: screens_1.playScreen(),
             winScreen: screens_1.winScreen(),
             loseScreen: screens_1.loseScreen()
@@ -6065,9 +6386,16 @@ class Game {
     init() {
         // Any necessary initialization will go here.
         this.logo = logo_1.Logo();
-        this._display = new index_1.Display({ width: this._screenWidth, height: this._screenHeight });
-        this._inventory = new index_1.Display({ width: 10, height: this._screenHeight });
-        this._messaging = new index_1.Display({ width: this._screenWidth, height: this._messageBoxSize });
+        this._display = new index_1.Display({
+            width: this._screenWidth,
+            height: this._screenHeight,
+            forceSquareRatio: true,
+            fontFamily: "Courier",
+            fontStyle: "bold",
+            spacing: 0.75
+        });
+        this._inventory = new index_1.Display({ width: 20, height: this._screenHeight * 0.75 });
+        this._messaging = new index_1.Display({ width: this._screenWidth * 1.5, height: this._messageBoxSize });
         this.messageLog = new messages_1.Messagelog(0, this._screenHeight, this._messageBoxSize);
         this.messageLog.messages = [{ message: '', color1: [0, 0, 0], color2: [0, 0, 0], type: "empty" },
             { message: '', color1: [0, 0, 0], color2: [0, 0, 0], type: "empty" },
@@ -6077,7 +6405,6 @@ class Game {
             { message: '', color1: [0, 0, 0], color2: [0, 0, 0], type: "empty" },
             { message: '', color1: [0, 0, 0], color2: [0, 0, 0], type: "empty" },
             { message: '', color1: [0, 0, 0], color2: [0, 0, 0], type: "empty" }];
-        this._inventory.drawText(0, 1, 'ola');
         //let game = this; // So that we don't lose this
         let event = "keydown";
         let menu = document.getElementById("menu");
@@ -6121,22 +6448,44 @@ class Game {
         for (let message of this.messageLog.messages) {
             alpha += 0.1;
             if (message.type == 'death' || message.type == 'fight' || message.type == 'skill' || message.type == 'pickup') {
+                console.log(message.message);
                 fading = "%c{rgb(" + Math.round(message.color1[0] * alpha).toString() + "," + Math.round(message.color1[1] * alpha).toString() + "," + Math.round(message.color1[2] * alpha).toString() + ")}";
                 fading2 = "%c{rgb(" + Math.round(message.color2[0] * alpha).toString() + "," + Math.round(message.color2[1] * alpha).toString() + "," + Math.round(message.color2[2] * alpha).toString() + ")}";
-                out = message.message.replace("%c{0}", fading);
-                out2 = out.replace("%c{1}", fading2);
-                this._messaging.drawText(1, x, '' + fading2 + out2);
+                out = message.message.replace(/%c\{0}/g, fading);
+                out2 = out.replace(/%c\{1}/g, fading2);
+                this._messaging.drawText(1, x, '' + fading2 + out2, this._screenWidth * 2);
             }
             x += 1;
         }
     }
     writeStats() {
-        let hp = this._player.fighter.hp;
+        let hp = this._player.fighter.hp.toFixed(2);
         let max_hp = this._player.fighter.max_hp();
-        this._inventory.drawText(1, 1, "Stats: ");
+        this._inventory.drawText(0, 1, "Status: ");
         this._inventory.drawText(1, 3, "%c{rgb(255,0,0)}HP: %c{}" + hp + "/" + max_hp);
-        this._inventory.drawText(1, 5, "%c{blue}Atk: %c{}" + this._player.fighter.power());
-        this._inventory.drawText(1, 7, "%c{yellow}Def: %c{}" + this._player.fighter.defense());
+        this._inventory.drawText(1, 4, "%c{blue}Atk: %c{}" + this._player.fighter.power());
+        this._inventory.drawText(1, 5, "%c{yellow}Def: %c{}" + this._player.fighter.defense());
+        if (this._player.fighter.unspentPoints > 0) {
+            let blink = "";
+            if (this.blinkLevel < 2)
+                blink = "%c{rgb(140, 140, 140)}";
+            if (this.blinkLevel >= 2)
+                blink = "%c{rgb(240, 240, 240)}";
+            if (this.blinkLevel > 5)
+                this.blinkLevel = 0;
+            this.blinkLevel += 1;
+            this._inventory.drawText(1, 7, blink + " LEVEL UP! : " + this._player.fighter.unspentPoints);
+            this._inventory.drawText(1, 8, "%c{rgb(24,191,230)}Força: %c{}" + this._player.fighter.base_power + blink + " (a)");
+            this._inventory.drawText(1, 9, "%c{rgb(211, 234, 49)}Vitalidade: %c{}" + this._player.fighter.base_defense + blink + " (s)");
+            this._inventory.drawText(1, 10, "%c{rgb(230, 121, 70)}Hp base: %c{}" + this._player.fighter.base_max_hp + blink + " (d)");
+        }
+        else {
+            this._inventory.drawText(1, 8, "%c{rgb(24,191,230)}Força: %c{}" + this._player.fighter.base_power);
+            this._inventory.drawText(1, 9, "%c{rgb(211, 234, 49)}Vitalidade: %c{}" + this._player.fighter.base_defense);
+            this._inventory.drawText(1, 10, "%c{rgb(230, 121, 70)}Hp base: %c{}" + this._player.fighter.base_max_hp);
+        }
+        this._inventory.drawText(1, 12, "%c{rgb(140, 140, 160)}Rank: %c{}" + this._player.fighter.rank);
+        this._inventory.drawText(1, 13, "%c{rgb(140, 140, 160)}Exp: %c{}" + this._player.fighter.current_exp + "/" + this._player.fighter.nextRank);
     }
     switchScreen(screen) {
         // If we had a screen before, notify it that we exited
@@ -6183,8 +6532,9 @@ exports.Game = Game;
 window.onload = function () {
     let game = new Game();
     // Initialize the game
-    let fighter = new fighter_1.Fighter(9995, 1, 4, 0);
+    let fighter = new fighter_1.Fighter(999, 1, 4, 0);
     let player = new entity_1.Entity(60, 45, new glyph_1.Glyph('@', [0, 0, 0], [0, 191, 255]), 'Player', 1, true, 1, 1, fighter, undefined, true);
+    player.fighter.unspentPoints = 10;
     game._player = player;
     game._entities = [game._player];
     game.init();
@@ -6240,12 +6590,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const entity_1 = __webpack_require__(/*! ../entity */ "./src/entity.ts");
 const damageBlock_1 = __webpack_require__(/*! ../components/damageBlock */ "./src/components/damageBlock.ts");
 const glyph_1 = __webpack_require__(/*! ../glyph */ "./src/glyph.ts");
-function createDamageBlock(creator, x, y, name, multi) {
+function createDamageBlock(creator, x, y, name, multi, glyph = '╳', timeout = 6) {
     let dir = creator.face;
-    let dmg = new damageBlock_1.DamageBlock(multi);
+    let dmg = new damageBlock_1.DamageBlock(multi, timeout);
     let attack = null;
     dmg.owner = creator;
-    attack = new entity_1.Entity(x, y, new glyph_1.Glyph('x', [0, 0, 0], [255, 0, 0]), name, 1, false, 0, 5, undefined, undefined, false, undefined, undefined, dmg);
+    //console.log(creator);
+    if (creator.player)
+        attack = new entity_1.Entity(x, y, new glyph_1.Glyph(glyph, [0, 0, 0], [creator.glyph.foreground[1] / 4, creator.glyph.foreground[1] / 4, creator.glyph.foreground[2] / 4]), name, 1, false, 0, 5, undefined, undefined, false, undefined, undefined, dmg);
+    else
+        attack = new entity_1.Entity(x, y, new glyph_1.Glyph(glyph, [0, 0, 0], [150, creator.glyph.foreground[1] / 4, creator.glyph.foreground[2] / 4]), name, 1, false, 0, 5, undefined, undefined, false, undefined, undefined, dmg);
     attack._map = creator._map;
     attack.damage.startCountDown();
     attack.owner = creator;
@@ -6270,29 +6624,90 @@ const entity_1 = __webpack_require__(/*! ../entity */ "./src/entity.ts");
 const knife_1 = __webpack_require__(/*! ../content/itens/knife */ "./src/content/itens/knife.ts");
 const glyph_1 = __webpack_require__(/*! ../glyph */ "./src/glyph.ts");
 const sword_1 = __webpack_require__(/*! ../content/itens/sword */ "./src/content/itens/sword.ts");
-function CreateItem(monster_choice, x, y) {
-    if (monster_choice == 'knife') {
+function CreateItem(item_choice, x, y) {
+    if (item_choice == 'knife') {
         let item_component = new knife_1.Knife();
-        let monster = new entity_1.Entity(x, y, new glyph_1.Glyph(';', [0, 0, 0], [204, 200, 0]), 'knife', 1, false, 5, 2, undefined, undefined, false, item_component);
-        return monster;
+        let item = new entity_1.Entity(x, y, new glyph_1.Glyph('Ϯ', [0, 0, 0], [204, 200, 0]), 'knife', 1, false, 5, 2, undefined, undefined, false, item_component);
+        item.item.glyph = item.glyph;
+        return item;
     }
-    else if (monster_choice == 'sword') {
+    else if (item_choice == 'sword') {
         let item_component = new sword_1.Sword();
-        let monster = new entity_1.Entity(x, y, new glyph_1.Glyph('\\', [0, 0, 0], [200, 200, 0]), 'sword', 1, false, 5, 2, undefined, undefined, false, item_component);
-        return monster;
+        let item = new entity_1.Entity(x, y, new glyph_1.Glyph('ރ', [0, 0, 0], [200, 200, 0]), 'sword', 1, false, 5, 2, undefined, undefined, false, item_component);
+        item.item.glyph = item.glyph;
+        return item;
     }
-    else if (monster_choice == 'spear') {
+    else if (item_choice == 'spear') {
         let item_component = new knife_1.Knife();
-        let monster = new entity_1.Entity(x, y, new glyph_1.Glyph('Î', [0, 0, 0], [200, 200, 0]), 'spear', 1, false, 5, 2, undefined, undefined, false, item_component);
-        return monster;
+        let item = new entity_1.Entity(x, y, new glyph_1.Glyph('Î', [0, 0, 0], [200, 200, 0]), 'spear', 1, false, 5, 2, undefined, undefined, false, item_component);
+        item.item.glyph = item.glyph;
+        return item;
     }
-    else if (monster_choice == 'dagger') {
+    else if (item_choice == 'dagger') {
         let item_component = new knife_1.Knife();
-        let monster = new entity_1.Entity(x, y, new glyph_1.Glyph(';', [0, 0, 0], [200, 200, 0]), 'dagger', 1, false, 5, 2, undefined, undefined, false, item_component);
-        return monster;
+        let item = new entity_1.Entity(x, y, new glyph_1.Glyph('Ϯ', [0, 0, 0], [200, 200, 0]), 'dagger', 1, false, 5, 2, undefined, undefined, false, item_component);
+        item.item.glyph = item.glyph;
+        return item;
     }
 }
 exports.CreateItem = CreateItem;
+function CreateSpecificItem(item_choice, x, y) {
+    if (item_choice == 'knife') {
+        let item_component = new knife_1.Knife();
+        let item = new entity_1.Entity(x, y, new glyph_1.Glyph('Ϯ', [0, 0, 0], [204, 200, 0]), 'knife', 1, false, 5, 2, undefined, undefined, false, item_component);
+        item.item.glyph = item.glyph;
+        return item;
+    }
+    else if (item_choice == 'sword') {
+        let item_component = new sword_1.Sword();
+        let item = new entity_1.Entity(x, y, new glyph_1.Glyph('ރ', [0, 0, 0], [200, 200, 0]), 'sword', 1, false, 5, 2, undefined, undefined, false, item_component);
+        item.item.glyph = item.glyph;
+        return item;
+    }
+    else if (item_choice == 'spear') {
+        let item_component = new knife_1.Knife();
+        let item = new entity_1.Entity(x, y, new glyph_1.Glyph('Î', [0, 0, 0], [200, 200, 0]), 'spear', 1, false, 5, 2, undefined, undefined, false, item_component);
+        item.item.glyph = item.glyph;
+        return item;
+    }
+    else if (item_choice == 'dagger') {
+        let item_component = new knife_1.Knife();
+        let item = new entity_1.Entity(x, y, new glyph_1.Glyph('Ϯ', [0, 0, 0], [200, 200, 0]), 'dagger', 1, false, 5, 2, undefined, undefined, false, item_component);
+        item.item.glyph = item.glyph;
+        return item;
+    }
+}
+exports.CreateSpecificItem = CreateSpecificItem;
+function CreateDropItem(item, x, y) {
+    console.log('drop:');
+    console.log(item);
+    let item_choice = item.name;
+    if (item_choice == 'knife') {
+        let item_component = new knife_1.Knife();
+        let item = new entity_1.Entity(x, y, new glyph_1.Glyph('Ϯ', [0, 0, 0], [204, 200, 0]), 'knife', 1, false, 5, 2, undefined, undefined, false, item_component);
+        item.item.glyph = item.glyph;
+        return item;
+    }
+    else if (item_choice == 'sword') {
+        let item_component = new sword_1.Sword();
+        let item = new entity_1.Entity(x, y, new glyph_1.Glyph('ރ', [0, 0, 0], [200, 200, 0]), 'sword', 1, false, 5, 2, undefined, undefined, false, item_component);
+        item.item.glyph = item.glyph;
+        return item;
+    }
+    else if (item_choice == 'spear') {
+        let item_component = new knife_1.Knife();
+        let item = new entity_1.Entity(x, y, new glyph_1.Glyph('Î', [0, 0, 0], [200, 200, 0]), 'spear', 1, false, 5, 2, undefined, undefined, false, item_component);
+        item.item.glyph = item.glyph;
+        return item;
+    }
+    else if (item_choice == 'dagger') {
+        let item_component = new knife_1.Knife();
+        let item = new entity_1.Entity(x, y, new glyph_1.Glyph('Ϯ', [0, 0, 0], [200, 200, 0]), 'dagger', 1, false, 5, 2, undefined, undefined, false, item_component);
+        item.item.glyph = item.glyph;
+        return item;
+    }
+}
+exports.CreateDropItem = CreateDropItem;
 
 
 /***/ }),
@@ -6313,42 +6728,44 @@ const orc_1 = __webpack_require__(/*! ../content/monsters/orc */ "./src/content/
 const troll_1 = __webpack_require__(/*! ../content/monsters/troll */ "./src/content/monsters/troll.ts");
 const glyph_1 = __webpack_require__(/*! ../glyph */ "./src/glyph.ts");
 const fighter_1 = __webpack_require__(/*! ../components/fighter */ "./src/components/fighter.ts");
+const ranger_1 = __webpack_require__(/*! ../content/monsters/ranger */ "./src/content/monsters/ranger.ts");
+const wyvern_1 = __webpack_require__(/*! ../content/monsters/wyvern */ "./src/content/monsters/wyvern.ts");
 function CreateMonster(monster_choice, x, y) {
     if (monster_choice == 'fungi') {
         let fighter_component = new fighter_1.Fighter(200, 0, 4, 35);
         let ai_component = new fungi_1.Fungi();
-        let monster = new entity_1.Entity(x, y, new glyph_1.Glyph('f', [0, 0, 0], [0, 200, 0]), 'fungi', 1, true, 5, 2, fighter_component, ai_component);
+        let monster = new entity_1.Entity(x, y, new glyph_1.Glyph('f', [0, 0, 0], [0, 200, 0]), 'Fungi', 1, true, 5, 2, fighter_component, ai_component);
         return monster;
     }
     else if (monster_choice == 'orc') {
         let fighter_component = new fighter_1.Fighter(200, 0, 4, 35);
         let ai_component = new orc_1.Orc();
-        let monster = new entity_1.Entity(x, y, new glyph_1.Glyph('o', [0, 0, 0], [0, 128, 0]), 'orc', 1, true, 5, 2, fighter_component, ai_component);
+        let monster = new entity_1.Entity(x, y, new glyph_1.Glyph('o', [0, 0, 0], [0, 128, 0]), 'Orc', 1, true, 5, 2, fighter_component, ai_component);
         return monster;
     }
     else if (monster_choice == 'troll') {
         let fighter_component = new fighter_1.Fighter(30, 2, 8, 60);
         let ai_component = new troll_1.Troll();
-        let monster = new entity_1.Entity(x, y, new glyph_1.Glyph('o', [0, 0, 0], [128, 0, 128]), 'troll', 1, true, 5, 2, fighter_component, ai_component);
+        let monster = new entity_1.Entity(x, y, new glyph_1.Glyph('t', [0, 0, 0], [128, 0, 128]), 'Troll', 1, true, 5, 2, fighter_component, ai_component);
         return monster;
     }
     else if (monster_choice == 'wyvern') {
-        // fighter_component = Fighter(hp=20, defense=0, power=5, xp=40)
-        // ai_component = Wyvern()
-        // monster = Entity(x,y, 'w', libtcod.dark_violet, 0, 'wyvern', 200, blocks = True, render_order=RenderOrder.ACTOR, fighter=fighter_component, ai=ai_component)
-        // return monster
+        let fighter_component = new fighter_1.Fighter(20, 0, 5, 40);
+        let ai_component = new wyvern_1.Wyvern();
+        let monster = new entity_1.Entity(x, y, new glyph_1.Glyph('w', [0, 0, 0], [148, 0, 211]), 'Wyvern', 1, true, 5, 2, fighter_component, ai_component);
+        return monster;
     }
     else if (monster_choice == 'ranger') {
-        // fighter_component = Fighter(hp=40, defense=1, power=7, xp=40)
-        // ai_component = Ranger()
-        // monster = Entity(x,y, 'r', libtcod.dark_sepia, 0, 'ranger', 200, blocks = True, render_order=RenderOrder.ACTOR, fighter=fighter_component, ai=ai_component)
-        // return monster
+        let fighter_component = new fighter_1.Fighter(40, 1, 7, 40);
+        let ai_component = new ranger_1.Ranger(); //Ranger()
+        let monster = new entity_1.Entity(x, y, new glyph_1.Glyph('r', [0, 0, 0], [233, 150, 122]), 'Ranger', 1, true, 5, 2, fighter_component, ai_component);
+        return monster;
     }
     else if (monster_choice == 'dragon') {
-        // fighter_component = Fighter(hp=100, defense=5, power=16, xp=300)
-        // ai_component = Dragon()
-        // monster = Entity(x,y, 'D', libtcod.crimson, 0, 'dragao', 200, blocks = True, render_order=RenderOrder.ACTOR, fighter=fighter_component, ai=ai_component)
-        // return monster 
+        let fighter_component = new fighter_1.Fighter(100, 5, 16, 300);
+        let ai_component = new orc_1.Orc(); //Dragon()
+        let monster = new entity_1.Entity(x, y, new glyph_1.Glyph('d', [0, 0, 0], [220, 20, 60]), 'Dragon', 1, true, 5, 2, fighter_component, ai_component);
+        return monster;
     }
 }
 exports.CreateMonster = CreateMonster;
@@ -6380,6 +6797,525 @@ function deathFunction(entity) {
     }
 }
 exports.deathFunction = deathFunction;
+
+
+/***/ }),
+
+/***/ "./src/helper/dungeonMaze.ts":
+/*!***********************************!*\
+  !*** ./src/helper/dungeonMaze.ts ***!
+  \***********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const randint_1 = __webpack_require__(/*! ./randint */ "./src/helper/randint.ts");
+function ones(maxx, maxy) {
+    let array = [[1]];
+    for (let x = 0; x < maxx; x++) {
+        // Create the nested array for the y values
+        array.push([]);
+        // Add all the tiles
+        for (let y = 0; y < maxy; y++) {
+            array[x].push(1);
+        }
+    }
+    return array;
+}
+function randomRoom(maxx, maxy) {
+    let room;
+    let roomsizex = randint_1.randint(4, 16);
+    while (roomsizex % 2 == 0)
+        roomsizex -= 1;
+    roomsizex = (roomsizex * 2) - 1;
+    let roomsizey = randint_1.randint(4, 14);
+    while (roomsizey % 2 == 0)
+        roomsizey -= 1;
+    roomsizey = (roomsizey * 2) - 1;
+    let roomx = randint_1.randint(5, maxx - roomsizex - 1);
+    while (roomx % 4 != 0)
+        roomx += 1;
+    roomx += 1;
+    let roomy = randint_1.randint(5, maxy - roomsizey - 1);
+    while (roomy % 4 != 0)
+        roomy += 1;
+    roomy += 1;
+    room = {
+        x: roomx,
+        y: roomy,
+        sizex: roomsizex,
+        sizey: roomsizey
+    };
+    //console.log(room)
+    return room;
+}
+function digHere(here, map) {
+    let x = here.x;
+    let y = here.y;
+    switch (here.past) {
+        case 'N':
+            if (map[x - 1][y] != 0 && map[x - 1][y - 1] != 0 && map[x][y - 1] != 0 && map[x + 2][y - 1] != 0 && map[x + 2][y] != 0) {
+                map[x][y] = 0;
+                map[x + 1][y] = 0;
+                map[x][y + 1] = 0;
+                map[x + 1][y + 1] = 0;
+            }
+            else {
+                //map[x][y] = 2;
+            }
+            break;
+        case 'S':
+            if (map[x - 1][y] != 0 && map[x - 1][y + 2] != 0 && map[x][y + 2] != 0 && map[x + 2][y + 2] != 0 && map[x + 2][y] != 0) {
+                map[x][y] = 0;
+                map[x + 1][y] = 0;
+                map[x][y + 1] = 0;
+                map[x + 1][y + 1] = 0;
+            }
+            else {
+                //map[x][y] = 2;
+            }
+            break;
+        case 'E':
+            if (map[x][y - 1] != 0 && map[x + 2][y - 1] != 0 && map[x + 2][y] != 0 && map[x + 2][y + 2] != 0 && map[x][y + 2] != 0) {
+                map[x][y] = 0;
+                map[x + 1][y] = 0;
+                map[x][y + 1] = 0;
+                map[x + 1][y + 1] = 0;
+            }
+            else {
+                //map[x][y] = 2;
+            }
+            break;
+        case 'W':
+            if (map[x][y - 1] != 0 && map[x - 1][y - 1] != 0 && map[x - 1][y] != 0 && map[x - 1][y + 2] != 0 && map[x][y + 2] != 0) {
+                map[x][y] = 0;
+                map[x + 1][y] = 0;
+                map[x][y + 1] = 0;
+                map[x + 1][y + 1] = 0;
+            }
+            else {
+                //map[x][y] = 2;
+            }
+            break;
+        default:
+            console.log('default');
+            //map[x][y] = 2;
+            break;
+    }
+}
+function testDirections(here, map, path, maxx, maxy) {
+    let next = [];
+    let nextCandidates = [];
+    let y = here.y;
+    let x = here.x;
+    if (y + 4 < maxy)
+        if (map[x][y + 4] == 1) {
+            if (map[x - 1][y + 3] == 1 && map[x + 2][y + 3] == 1)
+                nextCandidates.push({
+                    x: x,
+                    y: y + 2,
+                    dir: 'S',
+                    past: 'S'
+                });
+        }
+    if (x + 4 < maxx)
+        if (map[x + 4][y] == 1) {
+            if (map[x + 3][y - 1] == 1 && map[x + 3][y + 2] == 1)
+                nextCandidates.push({
+                    x: x + 2,
+                    y: y,
+                    dir: 'E',
+                    past: 'E'
+                });
+        }
+    if (y - 3 > 0)
+        if (map[x][y - 3] == 1) {
+            if (map[x - 1][y - 3] == 1 && map[x + 2][y - 3] == 1)
+                nextCandidates.push({
+                    x: x,
+                    y: y - 2,
+                    dir: 'N',
+                    past: 'N'
+                });
+        }
+    if (x - 3 > 0)
+        if (map[x - 3][y] == 1) {
+            if (map[x - 3][y + 2] == 1 && map[x - 3][y - 1] == 1)
+                nextCandidates.push({
+                    x: x - 2,
+                    y: y,
+                    dir: 'W',
+                    past: 'W'
+                });
+        }
+    if (nextCandidates.length != 0) {
+        if (nextCandidates.length == 1) {
+            next.push(nextCandidates[0]);
+        }
+        else {
+            let selected = randint_1.randint(0, nextCandidates.length - 1);
+            let priority = (selected + 1) % nextCandidates.length;
+            while (priority != selected) {
+                next.push(nextCandidates[priority]);
+                priority = (priority + 1) % nextCandidates.length;
+            }
+            next.push(nextCandidates[selected]);
+        }
+    }
+    else {
+        map[x][y] = 2;
+        // map[x+1][y] = 2;
+        // map[x+1][y+1] = 2;
+        // map[x][y+1] = 2;
+    }
+    return next;
+}
+function digFront(here, pathFRONT, map) {
+    let next;
+    if (here.dir == 'N') {
+        next = {
+            x: here.x,
+            y: here.y - 2,
+            dir: 'z',
+            past: 'N'
+        };
+    }
+    if (here.dir == 'E') {
+        next = {
+            x: here.x + 2,
+            y: here.y,
+            dir: 'z',
+            past: 'E'
+        };
+    }
+    if (here.dir == 'S') {
+        next = {
+            x: here.x,
+            y: here.y + 2,
+            dir: 'z',
+            past: 'S'
+        };
+    }
+    if (here.dir == 'W') {
+        next = {
+            x: here.x - 2,
+            y: here.y,
+            dir: 'z',
+            past: 'W'
+        };
+    }
+    return next;
+}
+function digUp(pathGO, map, maxx, maxy) {
+    let db = 0;
+    while (pathGO.length > 0) {
+        let here = pathGO.pop();
+        if (map[here.x][here.y] != 0) {
+            digHere(here, map);
+            if (((here.x - 1) % 4 == 0) && ((here.y - 1) % 4 == 0)) {
+                let nxt = testDirections(here, map, pathGO, maxx, maxy);
+                nxt.forEach(element => {
+                    pathGO.push(element);
+                });
+            }
+            else {
+                pathGO.push(digFront(here, pathGO, map));
+            }
+            db += 1;
+            if (db == 10000) {
+                const pate = pathGO;
+                pathGO = [];
+            }
+            ;
+        }
+    }
+}
+function digBack(here, map, maxx, maxy) {
+    let digHere = [];
+    digHere.push(here);
+    while (digHere.length == 1) {
+        here = digHere.pop();
+        let next = {
+            x: here.x,
+            y: here.y
+        };
+        let walls = 0;
+        if (here.x + 2 < maxx) {
+            if (map[here.x + 2][here.y] >= 1)
+                walls += 1;
+            else {
+                next.x = here.x + 2;
+                digHere.push(next);
+            }
+        }
+        else
+            walls += 1;
+        if (here.x - 2 > 0) {
+            if (map[here.x - 2][here.y] >= 1)
+                walls += 1;
+            else {
+                next.x = here.x - 2;
+                digHere.push(next);
+            }
+        }
+        else
+            walls += 1;
+        if (here.y + 2 < maxy) {
+            if (map[here.x][here.y + 2] >= 1)
+                walls += 1;
+            else {
+                next.y = here.y + 2;
+                digHere.push(next);
+            }
+        }
+        else
+            walls += 1;
+        if (here.y - 2 > 0) {
+            if (map[here.x][here.y - 2] >= 1)
+                walls += 1;
+            else {
+                next.y = here.y - 2;
+                digHere.push(next);
+            }
+        }
+        else
+            walls += 1;
+        if (walls > 2) {
+            map[here.x][here.y] = 1;
+            map[here.x + 1][here.y] = 1;
+            map[here.x][here.y + 1] = 1;
+            map[here.x + 1][here.y + 1] = 1;
+        }
+    }
+}
+function openWalls(roomsInGame, map, maxx, maxy) {
+    let directions = [];
+    let rooms = roomsInGame.length;
+    for (let i = 0; i < rooms; i++) {
+        if (Math.random() * 100 > 70)
+            directions.push('n');
+        if (Math.random() * 100 > 70)
+            directions.push('e');
+        if (Math.random() * 100 > 70)
+            directions.push('s');
+        if (Math.random() * 100 > 70)
+            directions.push('w');
+        if (directions.length == 0)
+            directions.push('z');
+        while (directions.length > 0) {
+            let dir = directions.pop();
+            let candidates = [];
+            switch (dir) {
+                case 'n':
+                    if (roomsInGame[i].y - 3 > 0) {
+                        for (let roomTop = 0; roomTop < roomsInGame[i].sizex; roomTop += 2) {
+                            if (map[roomsInGame[i].x + roomTop][roomsInGame[i].y - 3] < 1) {
+                                candidates.push(roomTop);
+                                //map[roomsInGame[i].x + roomTop][roomsInGame[i].y-3] = 1
+                            }
+                            else {
+                                if (candidates.length > 0) {
+                                    let x = randint_1.randint(0, candidates.length - 1);
+                                    map[roomsInGame[i].x + candidates[x]][roomsInGame[i].y - 1] = 0;
+                                    map[roomsInGame[i].x + candidates[x] + 1][roomsInGame[i].y - 1] = 0;
+                                    map[roomsInGame[i].x + candidates[x]][roomsInGame[i].y - 2] = 0;
+                                    map[roomsInGame[i].x + candidates[x] + 1][roomsInGame[i].y - 2] = 0;
+                                    candidates = [];
+                                }
+                            }
+                        }
+                        if (candidates.length > 0) {
+                            let x = randint_1.randint(0, candidates.length - 1);
+                            map[roomsInGame[i].x + candidates[x]][roomsInGame[i].y - 1] = 0;
+                            map[roomsInGame[i].x + candidates[x] + 1][roomsInGame[i].y - 1] = 0;
+                            map[roomsInGame[i].x + candidates[x]][roomsInGame[i].y - 2] = 0;
+                            map[roomsInGame[i].x + candidates[x] + 1][roomsInGame[i].y - 2] = 0;
+                            candidates = [];
+                        }
+                    }
+                    break;
+                case 'e':
+                    if (roomsInGame[i].x + roomsInGame[i].sizex + 3 < maxx) {
+                        for (let roomRight = 0; roomRight < roomsInGame[i].sizey; roomRight += 2) {
+                            if (map[roomsInGame[i].x + roomsInGame[i].sizex + 3][roomsInGame[i].y + roomRight] < 1) {
+                                candidates.push(roomRight);
+                                //map[roomsInGame[i].x + roomsInGame[i].sizex + 3][roomsInGame[i].y + roomRight] = 2
+                            }
+                            else {
+                                if (candidates.length > 0) {
+                                    let x = randint_1.randint(0, candidates.length - 1);
+                                    map[roomsInGame[i].x + roomsInGame[i].sizex + 1][roomsInGame[i].y + candidates[x]] = 0;
+                                    map[roomsInGame[i].x + roomsInGame[i].sizex + 2][roomsInGame[i].y + candidates[x]] = 0;
+                                    map[roomsInGame[i].x + roomsInGame[i].sizex + 1][roomsInGame[i].y + candidates[x] + 1] = 0;
+                                    map[roomsInGame[i].x + roomsInGame[i].sizex + 2][roomsInGame[i].y + candidates[x] + 1] = 0;
+                                    candidates = [];
+                                }
+                            }
+                        }
+                        if (candidates.length > 0) {
+                            let x = randint_1.randint(0, candidates.length - 1);
+                            map[roomsInGame[i].x + roomsInGame[i].sizex + 1][roomsInGame[i].y + candidates[x]] = 0;
+                            map[roomsInGame[i].x + roomsInGame[i].sizex + 2][roomsInGame[i].y + candidates[x]] = 0;
+                            map[roomsInGame[i].x + roomsInGame[i].sizex + 1][roomsInGame[i].y + candidates[x] + 1] = 0;
+                            map[roomsInGame[i].x + roomsInGame[i].sizex + 2][roomsInGame[i].y + candidates[x] + 1] = 0;
+                            candidates = [];
+                        }
+                    }
+                    break;
+                case 's':
+                    if (roomsInGame[i].y + 3 < maxy) {
+                        for (let roomBot = 0; roomBot < roomsInGame[i].sizex; roomBot += 2) {
+                            if (map[roomsInGame[i].x + roomBot][roomsInGame[i].y + 3 + roomsInGame[i].sizey] < 1) {
+                                candidates.push(roomBot);
+                                //map[roomsInGame[i].x + roomBot][roomsInGame[i].y+3 + roomsInGame[i].sizey] = 2
+                            }
+                            else {
+                                if (candidates.length > 0) {
+                                    let x = randint_1.randint(0, candidates.length - 1);
+                                    map[roomsInGame[i].x + candidates[x]][roomsInGame[i].y + 1 + roomsInGame[i].sizey] = 0;
+                                    map[roomsInGame[i].x + candidates[x] + 1][roomsInGame[i].y + 1 + roomsInGame[i].sizey] = 0;
+                                    map[roomsInGame[i].x + candidates[x]][roomsInGame[i].y + 2 + roomsInGame[i].sizey] = 0;
+                                    map[roomsInGame[i].x + candidates[x] + 1][roomsInGame[i].y + 2 + roomsInGame[i].sizey] = 0;
+                                    candidates = [];
+                                }
+                            }
+                        }
+                        if (candidates.length > 0) {
+                            let x = randint_1.randint(0, candidates.length - 1);
+                            map[roomsInGame[i].x + candidates[x]][roomsInGame[i].y + 1 + roomsInGame[i].sizey] = 0;
+                            map[roomsInGame[i].x + candidates[x] + 1][roomsInGame[i].y + 1 + roomsInGame[i].sizey] = 0;
+                            map[roomsInGame[i].x + candidates[x]][roomsInGame[i].y + 2 + roomsInGame[i].sizey] = 0;
+                            map[roomsInGame[i].x + candidates[x] + 1][roomsInGame[i].y + 2 + roomsInGame[i].sizey] = 0;
+                            candidates = [];
+                        }
+                    }
+                    break;
+                case 'w':
+                    if (roomsInGame[i].x - 3 > 0) {
+                        for (let roomLeft = 0; roomLeft < roomsInGame[i].sizey; roomLeft += 2) {
+                            if (map[roomsInGame[i].x - 3][roomsInGame[i].y + roomLeft] < 1) {
+                                candidates.push(roomLeft);
+                                //map[roomsInGame[i].x - 3][roomsInGame[i].y + roomLeft] = 2
+                            }
+                            else {
+                                if (candidates.length > 0) {
+                                    let x = randint_1.randint(0, candidates.length - 1);
+                                    map[roomsInGame[i].x - 1][roomsInGame[i].y + candidates[x]] = 0;
+                                    map[roomsInGame[i].x - 2][roomsInGame[i].y + candidates[x]] = 0;
+                                    map[roomsInGame[i].x - 1][roomsInGame[i].y + candidates[x] + 1] = 0;
+                                    map[roomsInGame[i].x - 2][roomsInGame[i].y + candidates[x] + 1] = 0;
+                                    candidates = [];
+                                }
+                            }
+                        }
+                        if (candidates.length > 0) {
+                            let x = randint_1.randint(0, candidates.length - 1);
+                            map[roomsInGame[i].x - 1][roomsInGame[i].y + candidates[x]] = 0;
+                            map[roomsInGame[i].x - 2][roomsInGame[i].y + candidates[x]] = 0;
+                            map[roomsInGame[i].x - 1][roomsInGame[i].y + candidates[x] + 1] = 0;
+                            map[roomsInGame[i].x - 2][roomsInGame[i].y + candidates[x] + 1] = 0;
+                            candidates = [];
+                        }
+                    }
+                    break;
+                default:
+                    i--;
+                    break;
+            }
+        }
+    }
+}
+function generateDunMaze(maxx, maxy) {
+    let map = ones(maxx, maxy);
+    let rooms = 400;
+    let roomsInGame = [];
+    let path = [];
+    let deadEnds = [];
+    let reject = 0;
+    for (let i = 0; i < rooms; i++) {
+        let room = randomRoom(maxx, maxy);
+        for (let ri = room.x - 1; ri <= room.x + room.sizex; ri++) {
+            for (let rj = room.y - 1; rj <= room.y + room.sizey; rj++) {
+                if (ri > maxx || rj > maxy)
+                    reject = 1;
+                else if (map[ri][rj] == 0) {
+                    ri = maxx;
+                    reject = 1;
+                }
+            }
+        }
+        if (reject != 1) {
+            roomsInGame.push(room);
+            for (let ri = room.x; ri <= room.x + room.sizex; ri++) {
+                for (let rj = room.y; rj <= room.y + room.sizey; rj++) {
+                    map[ri][rj] = 0;
+                }
+            }
+        }
+        reject = 0;
+    }
+    for (let i = 1; i < maxx; i = i + 4) {
+        for (let j = 1; j < maxy; j = j + 4) {
+            if (map[i][j] == 1 && map[i + 1][j] == 1 && map[i][j + 1] == 1 && map[i + 1][j + 1] == 1) { // coordenada atual
+                path.push({
+                    x: i,
+                    y: j,
+                    dir: 'z',
+                    past: 'S'
+                });
+                digUp(path, map, maxx, maxy);
+            }
+            if (map[i][j] == 2)
+                deadEnds.push({ x: i, y: j });
+        }
+    }
+    openWalls(roomsInGame, map, maxx, maxy);
+    removeDeadEnds(deadEnds, map, maxx, maxy);
+    return map;
+}
+exports.generateDunMaze = generateDunMaze;
+function removeDeadEnds(deadEnds, map, maxx, maxy) {
+    deadEnds.push({ x: 1, y: 1 });
+    let deadlen = deadEnds.length;
+    let count = 0;
+    for (let i = 0; i < deadlen; i = i + 1) {
+        let walls = 0;
+        if (deadEnds[i].x + 2 < maxx) {
+            if (map[deadEnds[i].x + 2][deadEnds[i].y] == 1)
+                walls += 1;
+        }
+        else
+            walls += 1;
+        if (deadEnds[i].x - 2 > 0) {
+            if (map[deadEnds[i].x - 2][deadEnds[i].y] == 1)
+                walls += 1;
+        }
+        else
+            walls += 1;
+        if (deadEnds[i].y + 2 < maxy) {
+            if (map[deadEnds[i].x][deadEnds[i].y + 2] == 1)
+                walls += 1;
+        }
+        else
+            walls += 1;
+        if (deadEnds[i].y - 2 > 0) {
+            if (map[deadEnds[i].x][deadEnds[i].y - 2] == 1)
+                walls += 1;
+        }
+        else
+            walls += 1;
+        if (walls > 2) {
+            count += 1;
+            digBack(deadEnds[i], map, maxx, maxy);
+            map[deadEnds[i].x][deadEnds[i].y] = 1;
+        }
+        else {
+            map[deadEnds[i].x][deadEnds[i].y] = 0;
+        }
+    }
+}
 
 
 /***/ }),
@@ -6475,7 +7411,7 @@ class Map {
         this._entities = [];
     }
     getTile(x, y) {
-        let emptyTile = new tiles_1.Tile('Empty', ' ', [0, 0, 0], [255, 255, 255], false, false);
+        let emptyTile = new tiles_1.Tile('empty', ' ', [0, 0, 0], [255, 255, 255]);
         if (x < 0 || x >= this._width || y < 0 || y >= this._height) {
             return emptyTile;
         }
@@ -6529,14 +7465,14 @@ class Map {
         return player;
     }
     addEntityToMap() {
-        let max_monsters_per_room = randFromLevel_1.from_dungeon_level([[20, 1], [3, 4], [5, 6]], this.dungeon_level);
-        let max_items_per_room = randFromLevel_1.from_dungeon_level([[1, 1], [2, 4]], this.dungeon_level);
+        let max_monsters_per_room = randFromLevel_1.from_dungeon_level([[20, 1], [30, 4], [40, 6]], this.dungeon_level);
+        let max_items_per_room = randFromLevel_1.from_dungeon_level([[10, 1], [2, 4]], this.dungeon_level);
         let number_of_monsters = randint_1.randint(0, max_monsters_per_room);
         let number_of_items = randint_1.randint(0, max_items_per_room);
         let monster_chances = {
-            'fungi': randFromLevel_1.from_dungeon_level([[200, 1]], this.dungeon_level),
-            'orc': randFromLevel_1.from_dungeon_level([[200, 1], [60, 3], [40, 7]], this.dungeon_level),
-            'troll': randFromLevel_1.from_dungeon_level([[50, 1], [10, 3], [30, 5], [60, 7]], this.dungeon_level),
+            'fungi': randFromLevel_1.from_dungeon_level([[1, 1]], this.dungeon_level),
+            'orc': randFromLevel_1.from_dungeon_level([[1, 1], [60, 3], [40, 7]], this.dungeon_level),
+            'troll': randFromLevel_1.from_dungeon_level([[1, 1], [10, 3], [30, 5], [60, 7]], this.dungeon_level),
             'wyvern': randFromLevel_1.from_dungeon_level([[1, 1], [50, 2], [50, 5]], this.dungeon_level),
             'dragon': randFromLevel_1.from_dungeon_level([[1, 1], [10, 3], [20, 7]], this.dungeon_level),
             'ranger': randFromLevel_1.from_dungeon_level([[1, 1]], this.dungeon_level)
@@ -6547,7 +7483,7 @@ class Map {
             //'healing_potion': 35,
             'knife': randFromLevel_1.from_dungeon_level([[10, 1]], this.dungeon_level),
             'dagger': randFromLevel_1.from_dungeon_level([[10, 1]], this.dungeon_level),
-            'sword': randFromLevel_1.from_dungeon_level([[500, 0], [10, 2]], this.dungeon_level),
+            'sword': randFromLevel_1.from_dungeon_level([[500, 0], [500, 2]], this.dungeon_level),
             'spear': randFromLevel_1.from_dungeon_level([[5, 1], [10, 3]], this.dungeon_level)
             //'shield': from_dungeon_level([[5, 0]], this.dungeon_level)
         };
@@ -6566,6 +7502,7 @@ class Map {
             if (emptyspace == true) {
                 let monster_choice = randFromLevel_1.random_choice_from_dict(monster_chances);
                 let q = createMonters_1.CreateMonster(monster_choice, x, y);
+                console.log(q);
                 q._map = this;
                 this._entities.push(q);
             }
@@ -6587,7 +7524,11 @@ class Map {
             }
             if (emptyspace == true) {
                 let item_choice = randFromLevel_1.random_choice_from_dict(item_chances);
-                let q = createItens_1.CreateItem(item_choice, 61, 45);
+                let q;
+                if (index == 1)
+                    q = createItens_1.CreateItem(item_choice, 61, 45);
+                else
+                    q = createItens_1.CreateItem(item_choice, x, y);
                 console.log(item_choice + '- ' + x + ' ' + y);
                 q._map = this;
                 this._entities.push(q);
@@ -6698,6 +7639,8 @@ const tiles_1 = __webpack_require__(/*! ./tiles */ "./src/tiles.ts");
 const maps = __webpack_require__(/*! ../lib/map */ "./lib/map/index.js");
 const randint_1 = __webpack_require__(/*! ./helper/randint */ "./src/helper/randint.ts");
 const knife_1 = __webpack_require__(/*! ./content/itens/knife */ "./src/content/itens/knife.ts");
+const dungeonMaze_1 = __webpack_require__(/*! ./helper/dungeonMaze */ "./src/helper/dungeonMaze.ts");
+const createItens_1 = __webpack_require__(/*! ./helper/createItens */ "./src/helper/createItens.ts");
 function startScreen() {
     //Game.Screen.startScreen = {
     return {
@@ -6723,43 +7666,19 @@ function startScreen() {
                 if (inputData.keyCode === constants_1.KEYS.VK_RETURN) {
                     game.switchScreen(game.Screen.playScreen);
                 }
+                if (inputData.keyCode === constants_1.KEYS.VK_COMMA) {
+                    game.switchScreen(game.Screen.debugScreen);
+                }
             }
         }
     };
 }
 exports.startScreen = startScreen;
-function playScreen() {
+function debugScreen() {
     return {
         enter: (game) => {
-            let mapWidth = 120;
-            let mapHeight = 90;
-            game._map = new map_1.Map(mapWidth, mapHeight);
-            let emptyTile = new tiles_1.Tile('Empty', ' ', [0, 0, 0], [255, 255, 255], true, false, false);
-            console.log("Entered play screen.");
-            for (let x = 0; x < mapWidth; x++) {
-                // Create the nested array for the y values
-                game._map._tiles.push([]);
-                // Add all the tiles
-                for (let y = 0; y < mapHeight; y++) {
-                    game._map._tiles[x].push(emptyTile);
-                }
-            }
-            let generator = new maps.default.Cellular(mapWidth, mapHeight);
-            generator.randomize(0.66);
-            let totalIterations = 3;
-            // Iteratively smoothen the map
-            for (let i = 0; i < totalIterations - 1; i++) {
-                generator.create();
-            }
-            // Smoothen it one last time and then update our map
-            generator.create((x, y, v) => {
-                if (v === 1 || x == 0 || y == 0 || x == mapWidth - 1 || x == mapHeight - 1) {
-                    game._map._tiles[x][y] = new tiles_1.Tile('Floor', '.', [0, 0, 0], [84, 54, 11], true, false); //floor
-                }
-                else {
-                    game._map._tiles[x][y] = new tiles_1.Tile('Wall', '#', [0, 0, 0], [218, 165, 32], false, true, true);
-                }
-            });
+            createDungeon(game);
+            //game._map._tiles[0][0] = new Tile('Floor', 'X', [0,0,0] , [200, 0, 200], true, false);
             // Sync map and game variables
             game._map._entities = [];
             // debug stuff
@@ -6800,19 +7719,24 @@ function playScreen() {
                 for (let y = topLeftY; y < topLeftY + screenHeight; y++) {
                     // Fetch the glyph for the tile and render it to the screen
                     let cell = game._map.getTile(x, y);
-                    cell.visited ?
-                        display.draw(x - topLeftX, y - topLeftY, cell.visitedTile.char, Color.toRGB(cell.visitedTile.foreground), Color.toRGB(cell.visitedTile.background)) :
-                        display.draw(x - topLeftX, y - topLeftY, ' ', Color.toRGB([0, 0, 0]), Color.toRGB([0, 0, 0]));
+                    //cell.visited ?
+                    display.draw(x - topLeftX, y - topLeftY, cell.visitedTile.char, Color.toRGB(cell.tile.foreground), Color.toRGB(cell.tile.background)); //:
+                    /* display.draw(
+                        x - topLeftX,
+                        y - topLeftY,
+                        ' ',
+                        Color.toRGB([0,0,0]),
+                        Color.toRGB([0,0,0]));*/
                 }
             }
-            game._map.setupFov(topLeftX, topLeftY);
+            //game._map.setupFov(topLeftX, topLeftY);
             removeExpiredDamage(game._entities);
             game._map._entities = entityRenderSort(game);
             game._entities = game._map._entities;
             for (let i = game._entities.length - 1; i >= 0; i--) {
                 //console.log(game._entities[i]); 
                 let cell = game._map.getTile(game._entities[i].x, game._entities[i].y);
-                if (cell.visibility > 0) {
+                if (cell.visibility != 0) { // 0
                     let dx = Math.pow(game._entities[0].x - game._entities[i].x, 2);
                     let dy = Math.pow(game._entities[0].y - game._entities[i].y, 2);
                     let dist = Math.sqrt(dx + dy);
@@ -6868,7 +7792,220 @@ function playScreen() {
         }
     };
 }
+exports.debugScreen = debugScreen;
+function playScreen() {
+    return {
+        enter: (game) => {
+            if (game.level <= 2) {
+                createCave(game);
+            }
+            if (game.level > 2 && game.level <= 4) {
+                if (Math.random() * 100 < 51) {
+                    createCave(game);
+                }
+                else {
+                    createDungeon(game);
+                }
+            }
+            if (game.level >= 5 && game.level < 7) {
+                createDungeon(game);
+            }
+            // Sync map and game variables
+            game._map._entities = [];
+            // debug stuff
+            let knife = new knife_1.Knife();
+            knife.owner = game._player;
+            game._player.equipment = createItens_1.CreateSpecificItem('knife', game._player.x, game._player.y).item;
+            game._player.equipment.owner = game._player;
+            game._map._entities.push(game._player); //player always [0]
+            game._player._map = game._map;
+            game._map._display = game._display;
+            game._map.messageLog = game.messageLog;
+            //let ai_component = new Fungi();
+            //let fighter_component = new Fighter(20, 0, 3, 35);
+            //let monster = new Entity(60, 47, new Glyph('f', 'black', '#0000aa'), 'fungi', 1, true, 2, 2, fighter_component, ai_component, false);
+            //monster._map = game._map;
+            //game._map._entities.push(monster);
+            //let knifeItem = new Entity()
+            game.timer = true;
+            game.startCountDown();
+            game._map.dungeon_level = game.level;
+            game._map.addEntityToMap();
+            game._entities = game._map._entities;
+        },
+        exit: () => {
+            console.log("Exited play screen.");
+        },
+        render: (display, game) => {
+            let screenWidth = game._screenWidth;
+            let screenHeight = game._screenHeight;
+            let player = game._player;
+            // Make sure the x-axis doesn't go to the left of the left bound
+            let topLeftX = Math.max(0, player.x - (screenWidth / 2));
+            // Make sure we still have enough space to fit an entire game screen
+            topLeftX = Math.min(topLeftX, game._map._width - screenWidth);
+            // Make sure the y-axis doesn't above the top bound
+            let topLeftY = Math.max(0, player.y - (screenHeight / 2));
+            // Make sure we still have enough space to fit an entire game screen
+            topLeftY = Math.min(topLeftY, game._map._height - screenHeight);
+            for (let x = topLeftX; x < topLeftX + screenWidth; x++) {
+                for (let y = topLeftY; y < topLeftY + screenHeight; y++) {
+                    // Fetch the glyph for the tile and render it to the screen
+                    let cell = game._map.getTile(x, y);
+                    cell.visited ?
+                        display.draw(x - topLeftX, y - topLeftY, cell.visitedTile.char, Color.toRGB(cell.visitedTile.foreground), Color.toRGB(cell.visitedTile.background)) :
+                        display.draw(x - topLeftX, y - topLeftY, ' ', Color.toRGB([0, 0, 0]), Color.toRGB([0, 0, 0]));
+                }
+            }
+            game._map.setupFov(topLeftX, topLeftY);
+            removeExpiredDamage(game._entities);
+            game._map._entities = entityRenderSort(game);
+            game._entities = game._map._entities;
+            for (let i = game._entities.length - 1; i >= 0; i--) {
+                //console.log(game._entities[i]); 
+                let cell = game._map.getTile(game._entities[i].x, game._entities[i].y);
+                if (cell.visibility > 0) {
+                    let dx = Math.pow(game._entities[0].x - game._entities[i].x, 2);
+                    let dy = Math.pow(game._entities[0].y - game._entities[i].y, 2);
+                    let dist = Math.sqrt(dx + dy);
+                    if (dist == 0 || dist <= game._entities[0].sight) {
+                        display.draw(game._entities[i].x - topLeftX, game._entities[i].y - topLeftY, game._entities[i].glyph.char, Color.toRGB(game._entities[i].glyph.foreground), Color.toRGB(game._entities[i].glyph.background));
+                    }
+                }
+            }
+        },
+        handleInput: (inputType, inputData, game) => {
+            if (inputType === 'keydown') {
+                switch (inputData.keyCode) {
+                    case constants_1.KEYS.VK_RETURN:
+                        //game.switchScreen(game.Screen.winScreen);
+                        let gnd = game._map.getItemAt(game._entities[0].x, game._entities[0].x2, game._entities[0].y, game._entities[0].y2);
+                        //console.log(gnd);
+                        if (gnd.length > 0) {
+                            game._entities[0].equip(gnd[0]);
+                        }
+                        else {
+                        }
+                        break;
+                    case constants_1.KEYS.VK_ESCAPE:
+                        //game.switchScreen(game.Screen.loseScreen);
+                        game.timer = false;
+                        break;
+                    case constants_1.KEYS.VK_SPACE:
+                        if (game._entities[0].equipment != undefined) {
+                            game._entities[0].equipment.strike();
+                        }
+                        break;
+                    case constants_1.KEYS.VK_LEFT:
+                        game._entities[0].move(-1, 0, game._map);
+                        break;
+                    case constants_1.KEYS.VK_DOWN:
+                        game._entities[0].move(0, 1, game._map);
+                        break;
+                    case constants_1.KEYS.VK_UP:
+                        game._entities[0].move(0, -1, game._map);
+                        break;
+                    case constants_1.KEYS.VK_RIGHT:
+                        game._entities[0].move(1, 0, game._map);
+                        break;
+                    default:
+                        break;
+                }
+                if (game._player.fighter.unspentPoints > 0) {
+                    switch (inputData.keyCode) {
+                        case constants_1.KEYS.VK_A:
+                            game._player.fighter.base_power += 1;
+                            game._player.fighter.unspentPoints -= 1;
+                            break;
+                        case constants_1.KEYS.VK_S:
+                            game._player.fighter.base_defense += 0.8;
+                            game._player.fighter.unspentPoints -= 1;
+                            break;
+                        case constants_1.KEYS.VK_D:
+                            game._player.fighter.base_max_hp += 10;
+                            game._player.fighter.unspentPoints -= 1;
+                            break;
+                        default:
+                            break;
+                    }
+                    if (game._player.fighter.unspentPoints < 0)
+                        game._player.fighter.unspentPoints = 0;
+                }
+            }
+            if (inputType === 'click') {
+                let xx = randint_1.randint(-5, 5);
+                let yy = randint_1.randint(-5, 5);
+                game._entities[0].move(xx, yy, game._map);
+            }
+        }
+    };
+}
 exports.playScreen = playScreen;
+function createCave(game) {
+    let mapWidth = 120;
+    let mapHeight = 90;
+    game._map = new map_1.Map(mapWidth, mapHeight);
+    let emptyTile = new tiles_1.Tile('empty', ' ', [0, 0, 0], [255, 255, 255]);
+    console.log("Entered play screen.");
+    for (let x = 0; x < mapWidth; x++) {
+        // Create the nested array for the y values
+        game._map._tiles.push([]);
+        // Add all the tiles
+        for (let y = 0; y < mapHeight; y++) {
+            game._map._tiles[x].push(emptyTile);
+        }
+    }
+    let generator = new maps.default.Cellular(mapWidth, mapHeight);
+    generator.randomize(0.66);
+    let totalIterations = 3;
+    // Iteratively smoothen the map
+    for (let i = 0; i < totalIterations - 1; i++) {
+        generator.create();
+    }
+    // Smoothen it one last time and then update our map
+    generator.create((x, y, v) => {
+        if (v === 1 || x == 0 || y == 0 || x == mapWidth - 1 || x == mapHeight - 1) {
+            game._map._tiles[x][y] = new tiles_1.Tile('floor', '.', [0, 0, 0], [84, 54, 11]); //floor
+        }
+        else {
+            game._map._tiles[x][y] = new tiles_1.Tile('wall', '#', [0, 0, 0], [218, 165, 32]);
+        }
+    });
+}
+function createDungeon(game) {
+    let mapWidth = 120;
+    let mapHeight = 88;
+    game._map = new map_1.Map(mapWidth, mapHeight);
+    let emptyTile = new tiles_1.Tile('empty', ' ', [0, 0, 0], [255, 255, 255]);
+    console.log("Entered debug screen.");
+    for (let x = 0; x < mapWidth; x++) {
+        // Create the nested array for the y values
+        game._map._tiles.push([]);
+        // Add all the tiles
+        for (let y = 0; y < mapHeight; y++) {
+            game._map._tiles[x].push(emptyTile);
+        }
+    }
+    let generator = dungeonMaze_1.generateDunMaze(mapWidth, mapHeight);
+    for (let x = 0; x < mapWidth; x++) {
+        for (let y = 0; y < mapHeight; y++) {
+            // if (generator[x][y] == 1) {
+            //     game._map._tiles[x][y] = new Tile('Wall', '#', [0,0,0], [218, 165, 32], true, true, false); // false, true, true
+            // } else {
+            //     game._map._tiles[x][y] = new Tile('Floor', '.', [0,0,0] , [84, 54, 11], true, false); //floor
+            // }
+            if (generator[x][y] == 1) {
+                game._map._tiles[x][y] = new tiles_1.Tile('wall', '#', [0, 0, 0], [218, 165, 32]); // false, true, true
+            }
+            if (generator[x][y] == 0) {
+                game._map._tiles[x][y] = new tiles_1.Tile('floor', '·', [0, 0, 0], [84, 54, 11]); //floor
+            }
+            if (generator[x][y] == 2) {
+                game._map._tiles[x][y] = new tiles_1.Tile('floor', 'E', [0, 0, 0], [200, 0, 0]);
+            }
+        }
+    }
+}
 function winScreen() {
     return {
         enter: () => {
@@ -6960,12 +8097,30 @@ exports.removeExpiredDamage = removeExpiredDamage;
 Object.defineProperty(exports, "__esModule", { value: true });
 const glyph_1 = __webpack_require__(/*! ./glyph */ "./src/glyph.ts");
 class Tile {
-    constructor(name, char = ' ', background = [0, 0, 0], foreground = [255, 255, 255], walkable = false, diggable = false, blockslight = false) {
+    constructor(name, char = ' ', background = [0, 0, 0], foreground = [255, 255, 255]) {
         this.visibility = 0;
         this.visited = false;
         this._isWalkable = false;
         this._isDiggable = false;
         this._blocksLight = false;
+        let walkable = false;
+        let diggable = false;
+        let blockslight = false;
+        switch (name) {
+            case 'debugWall':
+                blockslight = false;
+            case 'wall':
+                walkable = false;
+                diggable = false;
+                blockslight = true;
+                break;
+            case 'floor':
+                walkable = true;
+            case 'empty':
+                walkable = true;
+            default:
+                break;
+        }
         this.name = name;
         this._isDiggable = diggable;
         this._isWalkable = walkable;
