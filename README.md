@@ -8,7 +8,8 @@ Space: Weapon skill
 P: Use potion
 
 Hints:
-- Yellow icons are itens
+- Yellow icons are itens, potion is green
+- Monsters are letters
 - Light blue arc icon (⍝) is a door to next level!
 - Don't go on collision damage while low on armor!
 - Đragons are scary...
