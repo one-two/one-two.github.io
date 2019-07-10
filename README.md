@@ -2,10 +2,10 @@
 
 Minified and hosted version of at-the-tsbyss repo (https://github.com/one-two/at-the-tsbyss).
 
-Arrows: Movement
-Enter/Return: Pickup/Use stairs
-Space: Weapon skill
-P: Use potion
+- Arrows: Movement
+- Enter/Return: Pickup/Use stairs
+- Space: Weapon skill
+- P Key: Use potion
 
 Hints:
 - Yellow icons are itens, potion is green
