@@ -8117,13 +8117,8 @@ class Game {
             else {
                 this._inventory.drawText(1, 22, "%c{rgb(0, 255, 102)}Potions: %c{}" + this._player.inventory + " [p]");
             }
-            this._inventory.drawText(1, 29, "%c{rgb(140, 140, 160)}posdebug: %c{}" + this._player.x + " " + this._player.y);
-            this._inventory.drawText(1, 30, "%c{rgb(140, 140, 160)}Floor: %c{}" + this._map.dungeon_level);
-            this._inventory.drawText(1, 31, "%c{rgb(140, 140, 160)}exit: %c{}" + this._map.dungeon_level);
-            this._inventory.drawText(1, 32, "%c{rgb(140, 140, 160)}32: %c{}" + this._map.dungeon_level);
-            this._inventory.drawText(1, 32, "%c{rgb(140, 140, 160)}Floor: %c{}" + this._map.dungeon_level);
-            this._inventory.drawText(1, 32, "%c{rgb(140, 140, 160)}Floor: %c{}" + this._map.dungeon_level);
-            this._inventory.drawText(1, 32, "%c{rgb(140, 140, 160)}Floor: %c{}" + this._map.dungeon_level);
+            //this._inventory.drawText(1, 29, "%c{rgb(140, 140, 160)}posdebug: %c{}"+ this._player.x + " " + this._player.y);
+            this._inventory.drawText(1, 31, "%c{rgb(140, 140, 160)}Floor: %c{}" + this._map.dungeon_level);
         }
         else if (this.lang = "Pt") {
             this._inventory.drawText(1, 3, "%c{rgb(255,0,0)}PV: %c{}" + hp + "/" + max_hp);
@@ -8170,8 +8165,8 @@ class Game {
             else {
                 this._inventory.drawText(1, 22, "%c{rgb(0, 255, 102)}Poções: %c{}" + this._player.inventory + " [p]");
             }
-            this._inventory.drawText(1, 31, "%c{rgb(140, 140, 160)}Pos: %c{}" + this._player.x + " " + this._player.y);
-            this._inventory.drawText(1, 32, "%c{rgb(140, 140, 160)}Floor: %c{}" + this._map.dungeon_level);
+            //this._inventory.drawText(1, 31, "%c{rgb(140, 140, 160)}Pos: %c{}"+ this._player.x + " " + this._player.y);
+            this._inventory.drawText(1, 31, "%c{rgb(140, 140, 160)}Floor: %c{}" + this._map.dungeon_level);
         }
     }
     switchScreen(screen) {
@@ -9646,9 +9641,9 @@ function startScreen() {
                 display.drawText((game._screenWidth / 2) - 1, game._screenHeight - 5, "%c{yellow}>Eng%c{}      Port");
             if (game.mainmenuOpt == 1)
                 display.drawText((game._screenWidth / 2), game._screenHeight - 5, "Eng     %c{yellow}>Port%c{}");
-            display.drawText((game._screenWidth / 10), game._screenHeight - 4, "%c{yellow}Arrow%c{}: move");
-            display.drawText((game._screenWidth / 10), game._screenHeight - 3, "%c{yellow}Enter%c{}: pickup");
-            display.drawText((game._screenWidth / 10), game._screenHeight - 2, "%c{yellow}Space%c{}: skill");
+            display.drawText((game._screenWidth / 10), game._screenHeight - 4, "%c{yellow}Arrow%c{}: move/attack");
+            display.drawText((game._screenWidth / 10), game._screenHeight - 3, "%c{yellow}Enter%c{}: pickup itens/open door");
+            display.drawText((game._screenWidth / 10), game._screenHeight - 2, "%c{yellow}Space%c{}: use weapon skill");
             display.drawText((game._screenWidth / 10), game._screenHeight - 1, "%c{yellow}P Key%c{}: use potion");
         },
         handleInput: (inputType, inputData, game) => {
@@ -10019,9 +10014,9 @@ function playScreen() {
                 }
             }
             if (game.level == 0) {
-                display.drawText((game._screenWidth / 10), game._screenHeight - 4, "%c{yellow}Arrow%c{}: move");
-                display.drawText((game._screenWidth / 10), game._screenHeight - 3, "%c{yellow}Enter%c{}: pickup");
-                display.drawText((game._screenWidth / 10), game._screenHeight - 2, "%c{yellow}Space%c{}: skill");
+                display.drawText((game._screenWidth / 10), game._screenHeight - 4, "%c{yellow}Arrow%c{}: move/attack");
+                display.drawText((game._screenWidth / 10), game._screenHeight - 3, "%c{yellow}Enter%c{}: pickup itens/open door");
+                display.drawText((game._screenWidth / 10), game._screenHeight - 2, "%c{yellow}Space%c{}: use weapon skill");
                 display.drawText((game._screenWidth / 10), game._screenHeight - 1, "%c{yellow}P Key%c{}: use potion");
             }
         },
