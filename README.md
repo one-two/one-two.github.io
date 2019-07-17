@@ -7,6 +7,8 @@ Minified and hosted version of at-the-tsbyss repo (https://github.com/one-two/at
 - Space: Weapon skill
 - P Key: Use potion
 
+- Ctrl key on input menu: Leaderboards!
+
 Hints:
 - Yellow icons are itens, potion is green
 - Monsters are letters
