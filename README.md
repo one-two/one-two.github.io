@@ -1,6 +1,8 @@
-# in-the-abyss
+# at-the-abyss
 
 Minified and hosted version of at-the-tsbyss repo (https://github.com/one-two/at-the-tsbyss).
+
+Entrance: https://one-two.github.io/
 
 - Arrows: Movement
 - Enter/Return: Pickup/Use stairs
