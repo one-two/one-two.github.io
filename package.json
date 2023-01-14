@@ -28,11 +28,11 @@
     "source-map-loader": "^0.2.4",
     "typescript": "^3.2.2",
     "webpack": "^4.27.1",
-    "webpack-cli": "^3.3.2"
+    "webpack-cli": "^3.3.12"
   },
   "devDependencies": {
     "@types/node": "^10.12.18",
     "webpack": "^4.27.1",
-    "webpack-cli": "^3.3.2"
+    "webpack-cli": "^3.3.12"
   }
 }
